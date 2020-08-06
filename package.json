@@ -8,7 +8,6 @@
   },
   "scripts": {
     "build": "ttsc --project ./src/tsconfig.json",
-    "prepublishOnly": "npm run build",
     "sample:build": "ttsc --project ./sample/tsconfig.json",
     "sample:start": "http-server ./sample",
     "test": "echo \"Error: no test specified\" && exit 1"
