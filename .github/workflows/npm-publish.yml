@@ -1,0 +1,32 @@
+name: npm-publish
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "!*"
+jobs:
+  npm-publish:
+    name: npm-publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@master
+      - name: Setup Node
+        uses: actions/setup-node@master
+        with:
+          node-version: 10.x
+      - name: Install can-npm-publish
+        run: npm install can-npm-publish
+      - name: Check version and add tag
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          REPO: ${{github.repository}}
+          COMMIT: ${{github.sha}}
+        run: ./.github/workflows/release.sh
+      - name: build
+        run: npm run build
+      - name: release
+        run: npm publish
+        env:
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
