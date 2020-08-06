@@ -1,5 +1,5 @@
 import * as ts from 'typescript'
-import { fixupWhitespaceAndDecodeEntities } from './tsxUtility'
+import { fixupWhitespaceAndDecodeEntities } from './tsxUtility.js'
 import { cloneNode } from '@wessberg/ts-clone-node'
 import * as fs from 'fs'
 import * as path from 'path'
