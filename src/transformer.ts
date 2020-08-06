@@ -915,6 +915,7 @@ function transformJsxAttributeInitializer(initializer: ts.StringLiteral | ts.Jsx
 
 function getInterfaceType(typeChecker: ts.TypeChecker, node: ts.Node) {
     const symbol = typeChecker.getSymbolAtLocation(node)
+    if (!symbol) throw node.getText() + ' symbol is undefined.'
     return typeChecker.getDeclaredTypeOfSymbol(symbol)
 }
 

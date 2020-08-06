@@ -14,8 +14,10 @@ export default function myTransformerPlugin(program: ts.Program, opts: MyPluginO
 
 function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile) {
     function visitor(node: ts.Node) {
-        // remove import
-        if (ts.isImportDeclaration(node)) {
+        // remove import ./mono
+        if (ts.isImportDeclaration(node)
+            && ts.isStringLiteral(node.moduleSpecifier)
+            && node.moduleSpecifier.text === './mono') {
             return undefined
         }
 
