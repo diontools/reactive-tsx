@@ -3,7 +3,7 @@
         "strict": true,
         "jsx": "react-native",
         "target": "ES5",
-        "module": "ES2015",
+        "module": "CommonJS",
         "moduleResolution": "Node",
         "declaration": true,
         "outDir": "../lib",
