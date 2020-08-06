@@ -6,7 +6,7 @@ import * as path from 'path'
 import 'colors'
 
 const ModuleName = 'reactive-tsx'
-const MonoModuleName = 'reactive-tsx/mono'
+const MonoModuleName = 'reactive-tsx/lib/mono'
 const ComponentTypeName = 'Component'
 const RunFunctionName = 'run'
 const ChildrenPropName = 'children'

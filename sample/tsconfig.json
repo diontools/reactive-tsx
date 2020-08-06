@@ -9,7 +9,7 @@
         "baseUrl": ".",
         "paths": {
             "reactive-tsx": ["../lib"],
-            "reactive-tsx/mono": ["../lib/mono"]
+            "reactive-tsx/lib/mono": ["../lib/mono"]
         },
         "plugins": [
             { "transform": "../src/transformer.ts" }
