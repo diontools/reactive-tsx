@@ -8,8 +8,8 @@
         "outDir": "./dist/",
         "baseUrl": ".",
         "paths": {
-            "tsx-trans": ["../lib"],
-            "tsx-trans/mono": ["../lib/mono"]
+            "reactive-tsx": ["../lib"],
+            "reactive-tsx/mono": ["../lib/mono"]
         },
         "plugins": [
             { "transform": "../src/transformer.ts" }
@@ -17,11 +17,5 @@
     },
     "files": [
         "index.tsx"
-    ],
-    "exclude": [
-        "../src/*",
-        "tsx-trans",
-        "tsx-trans/mono",
-        "node_modules"
     ]
 }
