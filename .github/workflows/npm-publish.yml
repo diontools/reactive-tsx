@@ -10,21 +10,18 @@ jobs:
     name: npm-publish
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@master
-      - name: Setup Node
-        uses: actions/setup-node@master
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v1
         with:
-          node-version: 10.x
-      - name: Install can-npm-publish
-        run: npm install can-npm-publish
+          node-version: 12.x
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install can-npm-publish
       - name: Check version and add tag
+        run: ./.github/workflows/release.sh
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
           REPO: ${{github.repository}}
           COMMIT: ${{github.sha}}
-        run: ./.github/workflows/release.sh
-      - name: Publish
-        run: npm publish
+      - run: npm publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,6 +1,6 @@
 {
   "name": "reactive-tsx",
-  "version": "v0.0.1",
+  "version": "0.0.1",
   "description": "Tiny reactive web framework based on tsx.",
   "main": "lib/index.js",
   "directories": {
@@ -17,7 +17,7 @@
     "url": "git+https://github.com/diontools/reactive-tsx.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "diontools",
   "license": "MIT",
   "homepage": "https://github.com/diontools/reactive-tsx",
   "devDependencies": {
