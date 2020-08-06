@@ -65,6 +65,12 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
                     console.log('run Imported!'.cyan, typeChecker.typeToString(runType))
                 }
 
+                // remove import interface
+                const type = typeChecker.getTypeAtLocation(importSpecifier)
+                if (type.flags === ts.TypeFlags.Any) {
+                    removingNodes.push(importSpecifier)
+                }
+
                 if (isMono) {
                     monoNames.push(name)
                 }
@@ -99,6 +105,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
     function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
         if (removingNodes.indexOf(node) >= 0) {
+            console.log('remove'.yellow, node.getText())
             return undefined
         }
 
