@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "type": "node-terminal",
+            "name": "Run Script: sample:build",
+            "request": "launch",
+            "command": "npm run sample:build",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

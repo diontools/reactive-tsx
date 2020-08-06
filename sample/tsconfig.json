@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "jsx": "react-native",
+        "target": "ES2015",
+        "moduleResolution": "Node",
+        "module": "ES2015",
+        "outDir": "./dist/",
+        "baseUrl": ".",
+        "paths": {
+            "tsx-trans": ["../lib"],
+            "tsx-trans/mono": ["../lib/mono"]
+        },
+        "plugins": [
+            { "transform": "../src/transformer.ts" }
+        ]
+    },
+    "files": [
+        "index.tsx"
+    ],
+    "exclude": [
+        "../src/*",
+        "tsx-trans",
+        "tsx-trans/mono",
+        "node_modules"
+    ]
+}

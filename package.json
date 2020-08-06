@@ -1,0 +1,37 @@
+{
+  "name": "reactive-tsx",
+  "version": "0.0.0",
+  "description": "Tiny reactive web framework based on tsx.",
+  "main": "lib/index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "build": "ttsc --project ./src/tsconfig.json",
+    "prepublishOnly": "npm run build",
+    "sample:build": "ttsc --project ./sample/tsconfig.json",
+    "sample:start": "http-server ./sample",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diontools/reactive-tsx.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "homepage": "https://github.com/diontools/reactive-tsx",
+  "devDependencies": {
+    "@types/node": "^14.0.27",
+    "@wessberg/ts-clone-node": "^0.3.11",
+    "colors": "^1.4.0",
+    "ts-node": "^8.10.2",
+    "ttypescript": "^1.5.10",
+    "typescript": "^3.9.7"
+  },
+  "files": [
+    "src",
+    "types",
+    "lib"
+  ]
+}
