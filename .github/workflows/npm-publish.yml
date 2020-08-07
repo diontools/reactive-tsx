@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 12.x
           registry-url: 'https://registry.npmjs.org'
-      - run: npm install can-npm-publish
+      - run: npm install -D can-npm-publish
       - name: Check version and add tag
         run: ./.github/workflows/release.sh
         env:
