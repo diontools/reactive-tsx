@@ -174,7 +174,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         let newStatements: ts.Statement[] = transformedSourceFile.statements.filter((s, i) => i !== importStatementIndex)
 
         // get main module source file
-        const sourceText = fs.readFileSync(path.join(__dirname, 'index.ts')).toString()
+        const sourceText = fs.readFileSync(path.join(__dirname, '../src/index.ts')).toString()
         const mainModuleFile = ts.createSourceFile('index.ts', sourceText, ts.ScriptTarget.ES2020)
 
         const insertStatements: ts.Statement[] = []
