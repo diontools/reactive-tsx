@@ -101,6 +101,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         ctx,
         reactiveType,
         reactiveArrayType,
+        nodeNumber: 1,
     }
 
     function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
@@ -310,7 +311,7 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
 
     if (isJex(arrowFunction.body)) {
         arrowFunction.body = ts.createBlock(
-            jsxToStatements(transformJsx(context, unsubscribesId, arrowFunction.body, undefined, 1)),
+            jsxToStatements(transformJsx(context, unsubscribesId, arrowFunction.body, undefined)),
             true
         )
     }
@@ -329,7 +330,7 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
 
         body.statements = ts.createNodeArray([
             ...body.statements.slice(0, returnIndex),
-            ...jsxToStatements(transformJsx(context, unsubscribesId, returnStatement.expression, undefined, 1)),
+            ...jsxToStatements(transformJsx(context, unsubscribesId, returnStatement.expression, undefined)),
             ...body.statements.slice(returnIndex + 1)
         ])
     }
@@ -400,6 +401,7 @@ type TransformContext = {
     conditionalFuncUsed?: true
     conditionalTextFuncUsed?: true
     mapArrayFuncUsed?: true
+    nodeNumber: number
 }
 
 type TransformedJsx = ts.CallExpression | ts.Statement | ts.Statement[] | undefined
@@ -411,18 +413,18 @@ function jsxToStatements(jsx: TransformedJsx): ts.Statement[] {
     return [jsx]
 }
 
-function transformJsx(context: TransformContext, unsubscribesId: ts.Identifier, node: ts.JsxChild, parentNodeId: ts.Identifier | undefined, nodeNumber: number): TransformedJsx {
+function transformJsx(context: TransformContext, unsubscribesId: ts.Identifier, node: ts.JsxChild, parentNodeId: ts.Identifier | undefined): TransformedJsx {
     if (ts.isJsxElement(node)) {
-        return transformJsxOpeningLike(context, unsubscribesId, node.openingElement, parentNodeId, nodeNumber, node.children)
+        return transformJsxOpeningLike(context, unsubscribesId, node.openingElement, parentNodeId, node.children)
     } else if (ts.isJsxSelfClosingElement(node)) {
-        return transformJsxOpeningLike(context, unsubscribesId, node, parentNodeId, nodeNumber)
+        return transformJsxOpeningLike(context, unsubscribesId, node, parentNodeId)
     } else if (ts.isJsxText(node)) {
         if (!parentNodeId) throw 'parentNodeId is undefined.'
         return transformJsxText(node, parentNodeId)
     } else if (ts.isJsxExpression(node)) {
         if (!unsubscribesId) throw 'unsubscribesId is undefined.'
         if (!parentNodeId) throw 'parentNodeId is undefined.'
-        return transformJsxExpression(context, unsubscribesId, node, parentNodeId, nodeNumber)
+        return transformJsxExpression(context, unsubscribesId, node, parentNodeId)
     } else if (ts.isJsxFragment(node)) {
         // not supported
     }
@@ -431,7 +433,7 @@ function transformJsx(context: TransformContext, unsubscribesId: ts.Identifier, 
 }
 
 // <foo/> or <foo>
-function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.Identifier, jsxNode: ts.JsxOpeningLikeElement, parentNodeId: ts.Identifier | undefined, nodeNumber: number, children?: readonly ts.JsxChild[]): TransformedJsx {
+function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.Identifier, jsxNode: ts.JsxOpeningLikeElement, parentNodeId: ts.Identifier | undefined, children?: readonly ts.JsxChild[]): TransformedJsx {
     // <tagName> or <TagNameExp>
     const tagNameExp = getTagNameExpression(jsxNode)
 
@@ -443,7 +445,6 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
             unsubscribesId,
             jsxNode,
             parentNodeId,
-            nodeNumber,
             children,
             tagNameExp
         )
@@ -452,7 +453,7 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
     const newStatements: ts.Statement[] = []
 
     // const element1 = document.createElement('tagName')
-    const elementId = ts.createIdentifier(tagNameExp.text + nodeNumber)
+    const elementId = ts.createIdentifier(tagNameExp.text + context.nodeNumber++)
     newStatements.push(ts.createVariableStatement(
         undefined,
         ts.createVariableDeclarationList(
@@ -488,7 +489,7 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
         const childStatements: ts.Statement[] = []
         for (let i = 0; i < children.length; i++) {
             const child = children[i]
-            childStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, child, elementId, nodeNumber + 1 + i)))
+            childStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, child, elementId)))
         }
 
         // wrap block for children
@@ -512,7 +513,7 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
     return newStatements
 }
 
-function createChildComponentCallExpression(context: TransformContext, unsubscribesId: ts.Identifier, jsxNode: ts.JsxOpeningLikeElement, parentNodeId: ts.Identifier | undefined, nodeNumber: number, children: readonly ts.JsxChild[] | undefined, tagNameExp: ts.JsxTagNameExpression) {
+function createChildComponentCallExpression(context: TransformContext, unsubscribesId: ts.Identifier, jsxNode: ts.JsxOpeningLikeElement, parentNodeId: ts.Identifier | undefined, children: readonly ts.JsxChild[] | undefined, tagNameExp: ts.JsxTagNameExpression) {
     // create { props }
     const props: ts.ObjectLiteralElementLike[] = []
     for (const attribute of jsxNode.attributes.properties) {
@@ -535,7 +536,7 @@ function createChildComponentCallExpression(context: TransformContext, unsubscri
         const childStatements: ts.Statement[] = []
         for (let i = 0; i < children.length; i++) {
             const child = children[i]
-            childStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, child, childParentNodeId, nodeNumber + 1 + i)))
+            childStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, child, childParentNodeId)))
         }
 
         if (childStatements.length > 0) {
@@ -610,7 +611,7 @@ function transformJsxText(jsxText: ts.JsxText, parentNodeId: ts.Identifier) {
 }
 
 // {foo}
-function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Identifier, jsxExpression: ts.JsxExpression, parentNodeId: ts.Identifier, nodeNumber: number): TransformedJsx {
+function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Identifier, jsxExpression: ts.JsxExpression, parentNodeId: ts.Identifier): TransformedJsx {
     if (!jsxExpression.expression) return []
 
     // props.children
@@ -637,7 +638,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         const leftExp = jsxExpression.expression.left
         const rightExp = jsxExpression.expression.right
 
-        return createCallConditional(context, unsubscribesId, leftExp, rightExp, undefined, parentNodeId, nodeNumber)
+        return createCallConditional(context, unsubscribesId, leftExp, rightExp, undefined, parentNodeId)
     }
 
     // conditonExp ? trueExp : falseExp
@@ -646,12 +647,12 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         const trueExp = jsxExpression.expression.whenTrue
         const falseExp = jsxExpression.expression.whenFalse
 
-        return createCallConditional(context, unsubscribesId, conditionExp, trueExp, falseExp, parentNodeId, nodeNumber)
+        return createCallConditional(context, unsubscribesId, conditionExp, trueExp, falseExp, parentNodeId)
     }
 
     // jsx
     if (isJex(jsxExpression.expression)) {
-        return transformJsx(context, unsubscribesId, jsxExpression.expression, parentNodeId, nodeNumber)
+        return transformJsx(context, unsubscribesId, jsxExpression.expression, parentNodeId)
     }
 
     // array mapping
@@ -666,7 +667,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
 
             const childUnsubscribesId = ts.createIdentifier('unsubscribes')
 
-            const body = transformJsxToBody(context, childUnsubscribesId, selectExp.body, undefined, nodeNumber)
+            const body = transformJsxToBody(context, childUnsubscribesId, selectExp.body, undefined)
             if (!body) throw 'body is undefined.'
 
             const unsubscribesParameter = createSimpleParameter(childUnsubscribesId)
@@ -701,7 +702,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
     const reactives = getAllReactives(context, jsxExpression.expression)
     if (reactives.length > 0) {
         console.log('reactives'.gray, reactives.map(r => r.getText()), jsxExpression.expression.getText())
-        return createReactiveText(context, unsubscribesId, jsxExpression.expression, reactives, parentNodeId, nodeNumber)
+        return createReactiveText(context, unsubscribesId, jsxExpression.expression, reactives, parentNodeId)
     }
 
     // parentNode.appendChild(document.createTextNode('expression'))
@@ -716,7 +717,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
 }
 
 // conditional() or conditionalText()
-function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, conditionExp: ts.Expression, trueExp: ts.Expression, falseExp: ts.Expression | undefined, parentNodeId: ts.Identifier, nodeNumber: number) {
+function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, conditionExp: ts.Expression, trueExp: ts.Expression, falseExp: ts.Expression | undefined, parentNodeId: ts.Identifier) {
     const reactivesInCondition = getAllReactives(context, conditionExp)
     const reactivesInTrue = getAllReactives(context, trueExp)
     const reactivesInFalse = falseExp ? getAllReactives(context, falseExp) : []
@@ -750,15 +751,15 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
 
     const trueBlock =
         isJex(trueExp)
-            ? transformJsxToBody(context, childUnsubscribesId, trueExp, undefined, nodeNumber)
-            : createReactiveTextBlock(context, childUnsubscribesId, trueExp, reactivesInTrue, undefined, nodeNumber)
+            ? transformJsxToBody(context, childUnsubscribesId, trueExp, undefined)
+            : createReactiveTextBlock(context, childUnsubscribesId, trueExp, reactivesInTrue, undefined)
 
     const falseBlock =
         !falseExp
             ? undefined
             : isJex(falseExp)
-                ? transformJsxToBody(context, childUnsubscribesId, falseExp, undefined, nodeNumber)
-                : createReactiveTextBlock(context, childUnsubscribesId, falseExp, reactivesInTrue, undefined, nodeNumber)
+                ? transformJsxToBody(context, childUnsubscribesId, falseExp, undefined)
+                : createReactiveTextBlock(context, childUnsubscribesId, falseExp, reactivesInTrue, undefined)
 
     // conditional(parentNode, unsubscribes, [reactives], () => condition, (unsubscribes) => Node, (unsubscribes) => Node)
     return ts.createCall(
@@ -775,12 +776,12 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
     )
 }
 
-function transformJsxToBody(context: TransformContext, unsubscribesId: ts.Identifier, node: ts.JsxChild, parentNodeId: ts.Identifier | undefined, nodeNumber: number) {
-    const jsx = transformJsx(context, unsubscribesId, node, parentNodeId, nodeNumber)
+function transformJsxToBody(context: TransformContext, unsubscribesId: ts.Identifier, node: ts.JsxChild, parentNodeId: ts.Identifier | undefined) {
+    const jsx = transformJsx(context, unsubscribesId, node, parentNodeId)
     return !jsx ? undefined : !Array.isArray(jsx) && ts.isCallExpression(jsx) ? jsx : ts.createBlock(jsxToStatements(jsx), true)
 }
 
-function createReactiveText(context: TransformContext, unsubscribesId: ts.Identifier, expression: ts.Expression, reactives: ts.Expression[], parentNodeId: ts.Identifier | undefined, nodeNumber: number) {
+function createReactiveText(context: TransformContext, unsubscribesId: ts.Identifier, expression: ts.Expression, reactives: ts.Expression[], parentNodeId: ts.Identifier | undefined) {
     // simple text
     if (reactives.length === 0) {
         // document.createTextNode(expression || '')
@@ -806,7 +807,7 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
     const statements: ts.Statement[] = []
 
     // const text1 = document.createTextNode('')
-    const textNodeId = ts.createIdentifier('text' + nodeNumber)
+    const textNodeId = ts.createIdentifier('text' + context.nodeNumber++)
     statements.push(ts.createVariableStatement(
         undefined,
         ts.createVariableDeclarationList(
@@ -871,8 +872,8 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
     return statements
 }
 
-function createReactiveTextBlock(context: TransformContext, unsubscribesId: ts.Identifier, expression: ts.Expression, reactives: ts.Expression[], parentNodeId: ts.Identifier | undefined, nodeNumber: number) {
-    const text = createReactiveText(context, unsubscribesId, expression, reactives, parentNodeId, nodeNumber)
+function createReactiveTextBlock(context: TransformContext, unsubscribesId: ts.Identifier, expression: ts.Expression, reactives: ts.Expression[], parentNodeId: ts.Identifier | undefined) {
+    const text = createReactiveText(context, unsubscribesId, expression, reactives, parentNodeId)
     return Array.isArray(text) ? ts.createBlock(text, true) : text
 }
 
