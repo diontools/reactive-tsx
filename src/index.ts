@@ -28,14 +28,22 @@ export const reactive = <T>(init: T): Reactive<T> => {
 type Holder<T> = {
     item: Reactive<T>
     index: Reactive<number>
+    unsubscribe: Unsubscribe
 }
 
 export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
     let _v = init
     const _actions: Action[] = []
     const _listeners: Listener<T>[] = []
-    const _holders: Holder<T>[] = init.map((v, i): Holder<T> => ({ item: reactive(v), index: reactive(i) }))
+    const _holders: Holder<T>[] = init.map((_, i) => createHolder(i))
     const length = reactive(_v.length)
+
+    function createHolder(indexValue: number): Holder<T> {
+        const item = reactive(_v[indexValue])
+        const index = reactive(indexValue)
+        const unsubscribe = item.subscribe(() => _v[index.value] = item.value, true)
+        return ({ item, index, unsubscribe })
+    }
 
     const raise = (type: ActionType, holder: Holder<T>) => {
         for (let i = 0; i < _listeners.length; i++) {
@@ -77,8 +85,8 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
         push(...items) {
             for (let i = 0; i < items.length; i++) {
                 const index = _v.length
-                const holder: Holder<T> = { item: reactive(items[i]), index: reactive(index) }
                 _v.push(items[i])
+                const holder = createHolder(index)
                 _holders.push(holder)
                 raise(0, holder)
                 length.value = _v.length
@@ -89,7 +97,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
             if (_v.length > 0) {
                 const v = _v.pop()
                 const holder = _holders.pop()
-                if (holder) raise(1, holder)
+                if (holder) raise(1, holder), holder.unsubscribe()
                 length.value = _v.length
                 return v
             }
@@ -97,7 +105,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
         shift() {
             const v = _v.shift()
             const holder = _holders.shift()
-            if (holder) raise(1, holder)
+            if (holder) raise(1, holder), holder.unsubscribe()
             for (let i = 0; i < _holders.length; i++) _holders[i].index.value = i
             length.value = _v.length
             return v
@@ -111,8 +119,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
 
             for (let i = 0; i < replaceCount; i++) {
                 const holder = _holders[start + i]
-                const v: T = _v[start + i] = arguments[2 + i]
-                _holders[start + i] = { item: reactive(v), index: reactive(start + i) }
+                holder.item.value = _v[start + i] = arguments[2 + i]
                 raise(2, holder)
             }
 
@@ -121,7 +128,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
                     const v: T = arguments[2 + replaceCount + i]
                     const index = start + replaceCount + i
                     _v.splice(index, 0, v)
-                    const holder: Holder<T> = { item: reactive(v), index: reactive(index) }
+                    const holder = createHolder(index)
                     _holders.splice(index, 0, holder)
                     raise(0, holder)
                 }
@@ -133,6 +140,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
                     const holder = _holders[index]
                     _holders.splice(index, 1)
                     raise(1, holder)
+                    holder.unsubscribe()
                 }
 
                 for (let i = start + replaceCount; i < _holders.length; i++) _holders[i].index.value = i
