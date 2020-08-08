@@ -140,7 +140,7 @@ const reactiveArray = init => {
         }
     };
 };
-const subscribe = (action, unsubscribes, reactives) => {
+const subscribe$ = (action, unsubscribes, reactives) => {
     if (reactives) {
         for (let i = 0; i < reactives.length; i++) {
             unsubscribes.push(reactives[i].subscribe(action, true));
@@ -148,12 +148,12 @@ const subscribe = (action, unsubscribes, reactives) => {
     }
     action();
 };
-const combineReactive = (func, unsubscribes, reactives) => {
+const combineReactive$ = (func, unsubscribes, reactives) => {
     const r = reactive(undefined);
-    subscribe(() => r.value = func(), unsubscribes, reactives);
+    subscribe$(() => r.value = func(), unsubscribes, reactives);
     return r;
 };
-const conditional = (node, unsubscribes, reactives, condition, trueCreate, falseCreate) => {
+const conditional$ = (node, unsubscribes, reactives, condition, trueCreate, falseCreate) => {
     if (!trueCreate || !falseCreate) {
         const dummy = document.createTextNode("");
         if (!trueCreate)
@@ -165,7 +165,7 @@ const conditional = (node, unsubscribes, reactives, condition, trueCreate, false
     let current = condition();
     let currentNode = (current ? trueCreate : falseCreate)(childUnsubscribes);
     node.appendChild(currentNode);
-    subscribe(() => {
+    subscribe$(() => {
         const next = condition();
         if (current !== next) {
             const nextNode = (next ? trueCreate : falseCreate)(childUnsubscribes);
@@ -175,10 +175,10 @@ const conditional = (node, unsubscribes, reactives, condition, trueCreate, false
         }
     }, unsubscribes, reactives);
 };
-const conditionalText = (node, unsubscribes, conditionReactives, condition, trueString, falseString) => {
+const conditionalText$ = (node, unsubscribes, conditionReactives, condition, trueString, falseString) => {
     let current;
     const text = document.createTextNode("");
-    subscribe(() => {
+    subscribe$(() => {
         const next = condition();
         if (current !== next) {
             text.nodeValue = next ? trueString : falseString;
@@ -187,7 +187,7 @@ const conditionalText = (node, unsubscribes, conditionReactives, condition, true
     }, unsubscribes, conditionReactives);
     node.appendChild(text);
 };
-const mapArray = (() => {
+const mapArray$ = (() => {
     const clear = unsubscribes => {
         for (let i = 0; i < unsubscribes.length; i++)
             unsubscribes[i]();
@@ -230,7 +230,7 @@ const Item = (unsubscribes, props) => {
     {
         div1.appendChild(document.createTextNode("Item: "));
         const text2 = document.createTextNode("");
-        subscribe(() => text2.nodeValue = props.max.value + test.value, unsubscribes, [props.max, test]);
+        subscribe$(() => text2.nodeValue = props.max.value + test.value, unsubscribes, [props.max, test]);
         div1.appendChild(text2);
         props.children && props.children(div1, unsubscribes);
     }
@@ -239,7 +239,7 @@ const Item = (unsubscribes, props) => {
 const App = (unsubscribes, props) => {
     const count = reactive(0);
     const items = reactiveArray(['xyz', 'abc']);
-    const doubled = combineReactive(() => count.value * 2, unsubscribes, [count]);
+    const doubled = combineReactive$(() => count.value * 2, unsubscribes, [count]);
     const div3 = document.createElement("div");
     div3["className"] = "foo";
     {
@@ -269,27 +269,27 @@ const App = (unsubscribes, props) => {
             div8.appendChild(document.createTextNode("jsx in expression"));
         }
         div3.appendChild(div8);
-        conditionalText(div3, unsubscribes, [count, props.max], () => count.value > props.max.value, 'over!', "");
-        conditional(div3, unsubscribes, [count], () => count.value > 0, unsubscribes => {
+        conditionalText$(div3, unsubscribes, [count, props.max], () => count.value > props.max.value, 'over!', "");
+        conditional$(div3, unsubscribes, [count], () => count.value > 0, unsubscribes => {
             const text9 = document.createTextNode("");
-            subscribe(() => text9.nodeValue = ('conditional reactive text: ' + (count.value + props.max.value)), unsubscribes, [count, props.max]);
+            subscribe$(() => text9.nodeValue = ('conditional reactive text: ' + (count.value + props.max.value)), unsubscribes, [count, props.max]);
             return text9;
         }, undefined);
-        conditional(div3, unsubscribes, [count], () => count.value < 0, unsubscribes => {
+        conditional$(div3, unsubscribes, [count], () => count.value < 0, unsubscribes => {
             const em10 = document.createElement("em");
             {
                 em10.appendChild(document.createTextNode("under!"));
             }
             return em10;
         }, undefined);
-        conditional(div3, unsubscribes, [count], () => count.value > 0, unsubscribes => Item(unsubscribes, {
+        conditional$(div3, unsubscribes, [count], () => count.value > 0, unsubscribes => Item(unsubscribes, {
             max: props.max,
             children: (parentNode, unsubscribes) => {
                 parentNode.appendChild(document.createTextNode("conditional child component"));
             }
         }), undefined);
-        conditionalText(div3, unsubscribes, [count], () => count.value === 0, 'zero', 'non zero');
-        conditional(div3, unsubscribes, [count], () => count.value === 0, unsubscribes => document.createTextNode('zero' || ""), unsubscribes => {
+        conditionalText$(div3, unsubscribes, [count], () => count.value === 0, 'zero', 'non zero');
+        conditional$(div3, unsubscribes, [count], () => count.value === 0, unsubscribes => document.createTextNode('zero' || ""), unsubscribes => {
             const strong11 = document.createElement("strong");
             {
                 strong11.appendChild(document.createTextNode("non zero"));
@@ -308,7 +308,7 @@ const App = (unsubscribes, props) => {
         div3.appendChild(div12);
         const ul14 = document.createElement("ul");
         {
-            mapArray(ul14, items, (unsubscribes, item, index) => {
+            mapArray$(ul14, items, (unsubscribes, item, index) => {
                 const li15 = document.createElement("li");
                 {
                     const text16 = document.createTextNode("");

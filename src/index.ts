@@ -152,7 +152,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
     }
 }
 
-export const subscribe = (action: () => void, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+export const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
     if (reactives) {
         for (let i = 0; i < reactives.length; i++) {
             unsubscribes.push(reactives[i].subscribe(action, true))
@@ -161,15 +161,15 @@ export const subscribe = (action: () => void, unsubscribes: Unsubscribe[], react
     action()
 }
 
-export const combineReactive = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+export const combineReactive$ = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
     const r = reactive<T>((undefined as any))
-    subscribe(() => r.value = func(), unsubscribes, reactives)
+    subscribe$(() => r.value = func(), unsubscribes, reactives)
     return r
 }
 
 type NodeCreator = (unsubscribes: Unsubscribe[]) => Node
 
-export const conditional = (node: Node, unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, trueCreate?: NodeCreator, falseCreate?: NodeCreator) => {
+export const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, trueCreate?: NodeCreator, falseCreate?: NodeCreator) => {
     if (!trueCreate || !falseCreate) {
         const dummy = document.createTextNode('')
         if (!trueCreate) trueCreate = () => dummy
@@ -181,7 +181,7 @@ export const conditional = (node: Node, unsubscribes: Unsubscribe[], reactives: 
     let currentNode = (current ? trueCreate : falseCreate)(childUnsubscribes)
     node.appendChild(currentNode)
 
-    subscribe(() => {
+    subscribe$(() => {
         const next = condition()
         if (current !== next) {
             const nextNode = (next ? trueCreate : falseCreate)!(childUnsubscribes)
@@ -192,11 +192,11 @@ export const conditional = (node: Node, unsubscribes: Unsubscribe[], reactives: 
     }, unsubscribes, reactives)
 }
 
-export const conditionalText = (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => {
+export const conditionalText$ = (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => {
     let current: boolean
     const text = document.createTextNode('')
 
-    subscribe(() => {
+    subscribe$(() => {
         const next = condition()
         if (current !== next) {
             text.nodeValue = next ? trueString : falseString
@@ -207,7 +207,7 @@ export const conditionalText = (node: Node, unsubscribes: Unsubscribe[], conditi
     node.appendChild(text)
 }
 
-export const mapArray = (() => {
+export const mapArray$ = (() => {
     type Buffer = [Node, Unsubscribe[]]
     
     const clear = (unsubscribes: Unsubscribe[]) => {

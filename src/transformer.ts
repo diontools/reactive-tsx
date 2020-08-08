@@ -12,12 +12,12 @@ const RunFunctionName = 'run'
 const ChildrenPropName = 'children'
 const ReactiveTypeName = 'Reactive'
 const ReactiveArrayTypeName = 'ReactiveArray'
-const SubscribeFunctionName = 'subscribe'
-const ConditionalFunctionName = 'conditional'
-const ConditionalTextFunctionName = 'conditionalText'
-const MapArrayFunctionName = 'mapArray'
+const SubscribeFunctionName = 'subscribe$'
+const ConditionalFunctionName = 'conditional$'
+const ConditionalTextFunctionName = 'conditionalText$'
+const MapArrayFunctionName = 'mapArray$'
 const CombineFunctionName = 'combine'
-const CombineReactiveFunctionName = 'combineReactive'
+const CombineReactiveFunctionName = 'combineReactive$'
 
 export interface MyPluginOptions {
 }
