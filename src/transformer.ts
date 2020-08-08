@@ -191,8 +191,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
         const insertStatements: ts.Statement[] = []
         for (const statement of mainModuleFile.statements) {
-            if (ts.isVariableStatement(statement)
-                && (statement.modifiers?.findIndex(m => m.kind === ts.SyntaxKind.ExportKeyword) ?? -1) >= 0) {
+            if (ts.isVariableStatement(statement)) {
                 for (const variableDeclaration of statement.declarationList.declarations) {
                     if (ts.isIdentifier(variableDeclaration.name)) {
                         const variableName = ts.idText(variableDeclaration.name)

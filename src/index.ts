@@ -152,7 +152,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
     }
 }
 
-export const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
     if (reactives) {
         for (let i = 0; i < reactives.length; i++) {
             unsubscribes.push(reactives[i].subscribe(action, true))
@@ -161,7 +161,7 @@ export const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reac
     action()
 }
 
-export const combineReactive$ = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+const combineReactive$ = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
     const r = reactive<T>((undefined as any))
     subscribe$(() => r.value = func(), unsubscribes, reactives)
     return r
@@ -169,7 +169,7 @@ export const combineReactive$ = <T>(func: () => T, unsubscribes: Unsubscribe[], 
 
 type NodeCreator = (unsubscribes: Unsubscribe[]) => Node
 
-export const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, trueCreate?: NodeCreator, falseCreate?: NodeCreator) => {
+const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, trueCreate?: NodeCreator, falseCreate?: NodeCreator) => {
     if (!trueCreate || !falseCreate) {
         const dummy = document.createTextNode('')
         if (!trueCreate) trueCreate = () => dummy
@@ -192,7 +192,7 @@ export const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives:
     }, unsubscribes, reactives)
 }
 
-export const conditionalText$ = (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => {
+const conditionalText$ = (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => {
     let current: boolean
     const text = document.createTextNode('')
 
@@ -207,7 +207,7 @@ export const conditionalText$ = (node: Node, unsubscribes: Unsubscribe[], condit
     node.appendChild(text)
 }
 
-export const mapArray$ = (() => {
+const mapArray$ = (() => {
     type Buffer = [Node, Unsubscribe[]]
     
     const clear = (unsubscribes: Unsubscribe[]) => {
@@ -250,5 +250,5 @@ export const mapArray$ = (() => {
     })
 })()
 
-export const element: typeof document.createElement = document.createElement.bind(document)
-export const text: typeof document.createTextNode = document.createTextNode.bind(document)
+const element: typeof document.createElement = document.createElement.bind(document)
+const text: typeof document.createTextNode = document.createTextNode.bind(document)
