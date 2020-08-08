@@ -34,67 +34,49 @@ export default function myTransformerPlugin(program: ts.Program, opts: MyPluginO
 function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile) {
     console.log('transforming:', sourceFile.fileName.blue)
 
+    const { importDeclaration, namedImports, isMono, moduleSpecifier } = getImport(sourceFile)
+
     let componentType: ts.Type
     let runType: ts.Type
     let reactiveType: ts.Type | undefined
     let reactiveArrayType: ts.Type | undefined
     let combineType: ts.Type | undefined
-    let importStatementIndex = -1
     let removingNodes: ts.Node[] = []
-    let isMono = false
     const monoNames: string[] = []
 
-    for (let i = 0; i < sourceFile.statements.length; i++) {
-        const node = sourceFile.statements[i]
-        if (ts.isImportDeclaration(node)
-            && ts.isStringLiteral(node.moduleSpecifier)
-            && (node.moduleSpecifier.text === ModuleName || node.moduleSpecifier.text === MonoModuleName)
-            && node.importClause
-            && node.importClause.namedBindings
-            && ts.isNamedImports(node.importClause.namedBindings)
-        ) {
-            isMono = node.moduleSpecifier.text === MonoModuleName
+    for (const importSpecifier of namedImports.elements) {
+        const name = importSpecifier.propertyName?.text ?? importSpecifier.name.text
+        if (name === ComponentTypeName) {
+            componentType = getInterfaceType(typeChecker, importSpecifier.name)
+            console.log('Module Imported!'.cyan)
+        } else if (name === RunFunctionName) {
+            runType = typeChecker.getTypeAtLocation(importSpecifier.name)
+            removingNodes.push(importSpecifier)
+            console.log('run Imported!'.cyan, typeChecker.typeToString(runType))
+        } else if (name === CombineFunctionName) {
+            removingNodes.push(importSpecifier)
+        }
 
-            for (const importSpecifier of node.importClause.namedBindings.elements) {
-                const name = importSpecifier.propertyName?.text ?? importSpecifier.name.text
-                if (name === ComponentTypeName) {
-                    componentType = getInterfaceType(typeChecker, importSpecifier.name)
-                    importStatementIndex = i
-                    console.log('Module Imported!'.cyan)
-                } else if (name === RunFunctionName) {
-                    runType = typeChecker.getTypeAtLocation(importSpecifier.name)
-                    importStatementIndex = i
-                    removingNodes.push(importSpecifier)
-                    console.log('run Imported!'.cyan, typeChecker.typeToString(runType))
-                }
+        // remove import interface
+        const type = typeChecker.getTypeAtLocation(importSpecifier)
+        if (type.flags === ts.TypeFlags.Any) {
+            removingNodes.push(importSpecifier)
+        }
 
-                // remove import interface
-                const type = typeChecker.getTypeAtLocation(importSpecifier)
-                if (type.flags === ts.TypeFlags.Any) {
-                    removingNodes.push(importSpecifier)
-                }
-
-                if (isMono) {
-                    monoNames.push(name)
-                }
-            }
-
-            // get module symbol
-            const moduleSymbol = typeChecker.getSymbolAtLocation(node.moduleSpecifier)
-            if (!moduleSymbol) throw 'symbol is undefined.'
-            if (!moduleSymbol.exports) throw 'exports is undefined.'
-
-            // get types
-            reactiveType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, ReactiveTypeName)
-            reactiveArrayType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, ReactiveArrayTypeName)
-            combineType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, CombineFunctionName)
+        if (isMono) {
+            monoNames.push(name)
         }
     }
 
-    if (importStatementIndex < 0) {
-        console.log('not contain module'.yellow)
-        return sourceFile
-    }
+    // get module symbol
+    const moduleSymbol = typeChecker.getSymbolAtLocation(moduleSpecifier)
+    if (!moduleSymbol) throw 'symbol is undefined.'
+    if (!moduleSymbol.exports) throw 'exports is undefined.'
+
+    // get types
+    reactiveType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, ReactiveTypeName)
+    reactiveArrayType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, ReactiveArrayTypeName)
+    combineType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, CombineFunctionName)
 
     if (!reactiveType) throw 'reactiveType is undefined.'
     if (!reactiveArrayType) throw 'reactiveArrayType is undefined.'
@@ -156,34 +138,44 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
     let transformedSourceFile = ts.visitEachChild(sourceFile, visitor, ctx)
 
-    if (isMono) {
+    const requiredFuncNames: string[] = []
+
+    if (context.combineReactiveFuncUsed) {
+        requiredFuncNames.push(CombineReactiveFunctionName)
+        context.subscribeFuncUsed = true // force use
+    }
+
+    if (context.mapArrayFuncUsed) {
+        requiredFuncNames.push(MapArrayFunctionName)
+    }
+
+    if (context.conditionalFuncUsed) {
+        requiredFuncNames.push(ConditionalFunctionName)
+        context.subscribeFuncUsed = true // force use
+    }
+
+    if (context.conditionalTextFuncUsed) {
+        requiredFuncNames.push(ConditionalTextFunctionName)
+        context.subscribeFuncUsed = true // force use
+    }
+
+    if (context.subscribeFuncUsed) {
+        requiredFuncNames.push(SubscribeFunctionName)
+    }
+
+    const transformedImportInfo = getImport(transformedSourceFile)
+
+    if (!isMono) {
+        transformedImportInfo.namedImports.elements = ts.createNodeArray([
+            ...transformedImportInfo.namedImports.elements,
+            ...requiredFuncNames.map(name => ts.createImportSpecifier(undefined, ts.createIdentifier(name))),
+        ])
+    } else {
         console.log('mono mode'.blue)
-
-        if (context.combineReactiveFuncUsed) {
-            monoNames.push(CombineReactiveFunctionName)
-            context.subscribeFuncUsed = true // force use
-        }
-
-        if (context.mapArrayFuncUsed) {
-            monoNames.push(MapArrayFunctionName)
-        }
-
-        if (context.conditionalFuncUsed) {
-            monoNames.push(ConditionalFunctionName)
-            context.subscribeFuncUsed = true // force use
-        }
-
-        if (context.conditionalTextFuncUsed) {
-            monoNames.push(ConditionalTextFunctionName)
-            context.subscribeFuncUsed = true // force use
-        }
-
-        if (context.subscribeFuncUsed) {
-            monoNames.push(SubscribeFunctionName)
-        }
+        monoNames.push(...requiredFuncNames)
 
         // remove import declaration
-        let newStatements: ts.Statement[] = transformedSourceFile.statements.filter((s, i) => i !== importStatementIndex)
+        let newStatements: ts.Statement[] = transformedSourceFile.statements.filter(s => s !== transformedImportInfo.importDeclaration)
 
         // get main module source file
         const sourceText = fs.readFileSync(path.join(__dirname, '../src/index.ts')).toString()
@@ -218,6 +210,36 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
     }
 
     return transformedSourceFile
+}
+
+function getImport(sourceFile: ts.SourceFile) {
+    let importDeclaration: ts.ImportDeclaration | undefined
+    let namedImports: ts.NamedImports | undefined
+    let isMono = false
+    let moduleSpecifier: ts.StringLiteral | undefined
+
+    for (let i = 0; i < sourceFile.statements.length; i++) {
+        const node = sourceFile.statements[i]
+        if (ts.isImportDeclaration(node)
+            && ts.isStringLiteral(node.moduleSpecifier)
+            && (node.moduleSpecifier.text === ModuleName || node.moduleSpecifier.text === MonoModuleName)
+            && node.importClause
+            && node.importClause.namedBindings
+            && ts.isNamedImports(node.importClause.namedBindings)
+        ) {
+            if (namedImports) throw 'import should be only one.'
+            namedImports = node.importClause.namedBindings
+            isMono = node.moduleSpecifier.text === MonoModuleName
+            moduleSpecifier = node.moduleSpecifier
+            importDeclaration = node
+        }
+    }
+
+    if (!importDeclaration) throw 'importDeclaration not found.'
+    if (!namedImports) throw 'import not found.'
+    if (!moduleSpecifier) throw 'moduleSpecifier is undefined.'
+
+    return { importDeclaration, namedImports, isMono, moduleSpecifier }
 }
 
 function getTypeOfExportsByName(typeChecker: ts.TypeChecker, exports: ts.SymbolTable, typeName: string) {

@@ -38,4 +38,4 @@ export declare const reactiveArray: <T>(init: T[]) => ReactiveArray<T>
 
 export declare function run<Props>(node: HTMLElement, component: Component<Props>, props: Props): Unsubscribe
 
-export declare const combine: <T>(value: T) => Reactive<T>
+export declare function combine<T>(value: T): Reactive<T>
