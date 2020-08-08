@@ -34,6 +34,9 @@ export default function myTransformerPlugin(program: ts.Program, opts: MyPluginO
 function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile) {
     console.log('transforming:', sourceFile.fileName.blue)
 
+    // skip empty file
+    if (!sourceFile.text) return sourceFile
+
     const { importDeclaration, namedImports, isMono, moduleSpecifier } = getImport(sourceFile)
 
     let componentType: ts.Type
