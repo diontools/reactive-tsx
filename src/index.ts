@@ -1,7 +1,7 @@
 /// <reference path="../types/global.d.ts" />
 
-import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run } from './mono'
-export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run }
+import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run, combine } from './mono'
+export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run, combine }
 
 export const reactive = <T>(init: T): Reactive<T> => {
     let _v = init
@@ -159,6 +159,12 @@ export const subscribe = (action: () => void, unsubscribes: Unsubscribe[], react
         }
     }
     action()
+}
+
+export const combineReactive = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+    const r = reactive<T>((undefined as any))
+    subscribe(() => r.value = func(), unsubscribes, reactives)
+    return r
 }
 
 type NodeCreator = (unsubscribes: Unsubscribe[]) => Node

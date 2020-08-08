@@ -16,6 +16,8 @@ const SubscribeFunctionName = 'subscribe'
 const ConditionalFunctionName = 'conditional'
 const ConditionalTextFunctionName = 'conditionalText'
 const MapArrayFunctionName = 'mapArray'
+const CombineFunctionName = 'combine'
+const CombineReactiveFunctionName = 'combineReactive'
 
 export interface MyPluginOptions {
 }
@@ -32,10 +34,11 @@ export default function myTransformerPlugin(program: ts.Program, opts: MyPluginO
 function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile) {
     console.log('transforming:', sourceFile.fileName.blue)
 
-    let componentType: ts.Type | undefined = undefined
-    let runType: ts.Type | undefined = undefined
-    let reactiveType: ts.Type | undefined = undefined
-    let reactiveArrayType: ts.Type | undefined = undefined
+    let componentType: ts.Type
+    let runType: ts.Type
+    let reactiveType: ts.Type | undefined
+    let reactiveArrayType: ts.Type | undefined
+    let combineType: ts.Type | undefined
     let importStatementIndex = -1
     let removingNodes: ts.Node[] = []
     let isMono = false
@@ -84,6 +87,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
             // get types
             reactiveType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, ReactiveTypeName)
             reactiveArrayType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, ReactiveArrayTypeName)
+            combineType = getTypeOfExportsByName(typeChecker, moduleSymbol.exports, CombineFunctionName)
         }
     }
 
@@ -94,6 +98,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
     if (!reactiveType) throw 'reactiveType is undefined.'
     if (!reactiveArrayType) throw 'reactiveArrayType is undefined.'
+    if (!combineType) throw 'combineType is undefined.'
 
     const context: TransformContext = {
         sourceFile,
@@ -101,6 +106,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         ctx,
         reactiveType,
         reactiveArrayType,
+        combineType,
         nodeNumber: 1,
     }
 
@@ -152,6 +158,10 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
     if (isMono) {
         console.log('mono mode'.blue)
+
+        if (context.combineReactiveFuncUsed) {
+            monoNames.push(CombineReactiveFunctionName)
+        }
 
         if (context.mapArrayFuncUsed) {
             monoNames.push(MapArrayFunctionName)
@@ -213,7 +223,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 function getTypeOfExportsByName(typeChecker: ts.TypeChecker, exports: ts.SymbolTable, typeName: string) {
     const symbol = exports.get(ts.escapeLeadingUnderscores(typeName))
     if (!symbol) throw typeName + ' symbol is not found.'
-    return typeChecker.getDeclaredTypeOfSymbol(symbol)    
+    return typeChecker.getDeclaredTypeOfSymbol(symbol)
 }
 
 function transformRun(node: ts.CallExpression) {
@@ -316,23 +326,7 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
         )
     }
     else if (ts.isBlock(arrowFunction.body)) {
-        const body = arrowFunction.body = ts.getMutableClone(arrowFunction.body)
-
-        const returnIndex = body.statements.findIndex(statement => ts.isReturnStatement(statement))
-        if (returnIndex < 0)
-            throw 'return statement not found.'
-
-        const returnStatement = body.statements[returnIndex] as ts.ReturnStatement
-        if (!returnStatement.expression)
-            throw 'returns expression not found.'
-        if (!isJex(returnStatement.expression))
-            throw 'returns expression is not jsx.'
-
-        body.statements = ts.createNodeArray([
-            ...body.statements.slice(0, returnIndex),
-            ...jsxToStatements(transformJsx(context, unsubscribesId, returnStatement.expression, undefined)),
-            ...body.statements.slice(returnIndex + 1)
-        ])
+        arrowFunction.body = transformComponentBody(context, unsubscribesId, arrowFunction.body)
     }
     else {
         throw 'not supported node: ' + ts.SyntaxKind[arrowFunction.body.kind]
@@ -344,6 +338,53 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
     arrowFunction.parameters = ts.createNodeArray([unsubscribesParameter, ...arrowFunction.parameters])
 
     return newNode
+}
+
+function transformComponentBody(context: TransformContext, unsubscribesId: ts.Identifier, body: ts.Block): ts.ConciseBody {
+    const newBody = ts.getMutableClone(body)
+    const newStatements: ts.Statement[] = []
+
+    for (const statement of newBody.statements) {
+        if (ts.isReturnStatement(statement)) {
+            if (!statement.expression)
+                throw 'returns expression not found.'
+            if (!isJex(statement.expression))
+                throw 'returns expression is not jsx.'
+
+            newStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, statement.expression, undefined)))
+        } else {
+            function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
+                // combine function
+                if (ts.isCallExpression(node)
+                    && ts.isIdentifier(node.expression)
+                    && node.expression.text === CombineFunctionName) {
+
+                    context.combineReactiveFuncUsed = true
+                    const expression = node.arguments[0]
+                    const reactives = getAllReactives(context, expression)
+
+                    // combineReactive(() => expression, unsubscribes, [reactives])
+                    return ts.createCall(
+                        ts.createIdentifier(CombineReactiveFunctionName),
+                        undefined,
+                        [
+                            ts.createArrowFunction(undefined, undefined, [], undefined, undefined, expression),
+                            unsubscribesId,
+                            ts.createArrayLiteral(reactives),
+                        ]
+                    )
+                }
+
+                return ts.visitEachChild(node, visitor, context.ctx)
+            }
+
+            newStatements.push(ts.visitEachChild(statement, visitor, context.ctx))
+        }
+    }
+
+    newBody.statements = ts.createNodeArray(newStatements)
+
+    return newBody
 }
 
 function preserveMultiLine(node: ts.Node, sourceNode: ts.Node) {
@@ -397,10 +438,12 @@ type TransformContext = {
     ctx: ts.TransformationContext
     reactiveType: ts.Type
     reactiveArrayType: ts.Type
+    combineType: ts.Type
     subscribeFuncUsed?: true
     conditionalFuncUsed?: true
     conditionalTextFuncUsed?: true
     mapArrayFuncUsed?: true
+    combineReactiveFuncUsed?: true
     nodeNumber: number
 }
 

@@ -1,4 +1,4 @@
-import { Component, Reactive, Children, reactive, reactiveArray, run } from "reactive-tsx/lib/mono"
+import { Component, Reactive, Children, reactive, reactiveArray, run, combine } from "reactive-tsx/lib/mono"
 
 const Item: Component<{ max: Reactive<number>, children?: Children }> = (props) => {
     const test = reactive(0)
@@ -11,6 +11,7 @@ const Item: Component<{ max: Reactive<number>, children?: Children }> = (props) 
 const App: Component<{ max: Reactive<number> }> = props => {
     const count = reactive(0)
     const items = reactiveArray(['xyz', 'abc'])
+    const doubled = combine(count.value * 2)
 
     return <div className="foo">
         count: {count.value} (max: {props.max.value})

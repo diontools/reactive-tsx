@@ -37,3 +37,5 @@ export declare const reactive: <T>(init: T) => Reactive<T>
 export declare const reactiveArray: <T>(init: T[]) => ReactiveArray<T>
 
 export declare function run<Props>(node: HTMLElement, component: Component<Props>, props: Props): Unsubscribe
+
+export declare const combine: <T>(value: T) => Reactive<T>

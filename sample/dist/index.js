@@ -148,6 +148,11 @@ const subscribe = (action, unsubscribes, reactives) => {
     }
     action();
 };
+const combineReactive = (func, unsubscribes, reactives) => {
+    const r = reactive(undefined);
+    subscribe(() => r.value = func(), unsubscribes, reactives);
+    return r;
+};
 const conditional = (node, unsubscribes, reactives, condition, trueCreate, falseCreate) => {
     if (!trueCreate || !falseCreate) {
         const dummy = document.createTextNode("");
@@ -234,6 +239,7 @@ const Item = (unsubscribes, props) => {
 const App = (unsubscribes, props) => {
     const count = reactive(0);
     const items = reactiveArray(['xyz', 'abc']);
+    const doubled = combineReactive(() => count.value * 2, unsubscribes, [count]);
     const div3 = document.createElement("div");
     div3["className"] = "foo";
     {
