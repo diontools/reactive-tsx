@@ -1,6 +1,6 @@
 {
   "name": "reactive-tsx",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "Tiny reactive web framework based on tsx.",
   "type": "commonjs",
   "main": "lib/index.js",
@@ -22,7 +22,7 @@
   "license": "MIT",
   "homepage": "https://github.com/diontools/reactive-tsx",
   "dependencies": {
-    "@wessberg/ts-clone-node": "^0.3.11",
+    "@wessberg/ts-clone-node": "^0.3.12",
     "colors": "^1.4.0",
     "ttypescript": "^1.5.10",
     "typescript": "^3.9.7"

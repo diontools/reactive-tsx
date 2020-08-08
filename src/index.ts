@@ -81,7 +81,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
                 if (index >= 0) _listeners.splice(index, 1)
             }
         },
-        map: (undefined as any),
+        map: undefined as any,
         push(...items) {
             for (let i = 0; i < items.length; i++) {
                 const index = _v.length
@@ -162,7 +162,7 @@ export const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reac
 }
 
 export const combineReactive$ = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
-    const r = reactive<T>((undefined as any))
+    const r = reactive<T>(undefined as any)
     subscribe$(() => r.value = func(), unsubscribes, reactives)
     return r
 }

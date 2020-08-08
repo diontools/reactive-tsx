@@ -410,6 +410,11 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
 }
 
 function preserveMultiLine(node: ts.Node, sourceNode: ts.Node) {
+    // skip auto parenthesis
+    if (ts.isParenthesizedExpression(node) && !ts.isParenthesizedExpression(sourceNode)) {
+        node = node.expression
+    }
+
     if ((sourceNode as any).multiLine) {
         (node as any).multiLine = (sourceNode as any).multiLine
     }
