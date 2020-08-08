@@ -37,7 +37,12 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
     // skip empty file
     if (!sourceFile.text) return sourceFile
 
-    const { importDeclaration, namedImports, isMono, moduleSpecifier } = getImport(sourceFile)
+    const importInfo = getImport(sourceFile)
+
+    // skip no import
+    if (!importInfo) return sourceFile
+
+    const { importDeclaration, namedImports, isMono, moduleSpecifier } = importInfo
 
     let componentType: ts.Type
     let runType: ts.Type
@@ -167,6 +172,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
     }
 
     const transformedImportInfo = getImport(transformedSourceFile)
+    if (!transformedImportInfo) throw 'import not found.'
 
     if (!isMono) {
         transformedImportInfo.namedImports.elements = ts.createNodeArray([
@@ -238,7 +244,7 @@ function getImport(sourceFile: ts.SourceFile) {
         }
     }
 
-    if (!importDeclaration) throw 'importDeclaration not found.'
+    if (!importDeclaration) return
     if (!namedImports) throw 'import not found.'
     if (!moduleSpecifier) throw 'moduleSpecifier is undefined.'
 
