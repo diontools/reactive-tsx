@@ -42,7 +42,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
     // skip no import
     if (!importInfo) return sourceFile
 
-    const { importDeclaration, namedImports, isMono, moduleSpecifier } = importInfo
+    const { namedImports, isMono, moduleSpecifier } = importInfo
 
     let componentType: ts.Type
     let runType: ts.Type
