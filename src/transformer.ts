@@ -161,6 +161,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
         if (context.combineReactiveFuncUsed) {
             monoNames.push(CombineReactiveFunctionName)
+            context.subscribeFuncUsed = true // force use
         }
 
         if (context.mapArrayFuncUsed) {
