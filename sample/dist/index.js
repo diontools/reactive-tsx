@@ -316,7 +316,7 @@ const App = (unsubscribes, props) => {
                     li15.appendChild(text16);
                     li15.appendChild(document.createTextNode(": "));
                     const input17 = document.createElement("input");
-                    input17["value"] = item.value;
+                    unsubscribes.push(item.subscribe(() => input17["value"] = item.value));
                     input17["oninput"] = (e) => item.value = e.currentTarget.value;
                     li15.appendChild(input17);
                     li15.appendChild(document.createTextNode(" \u2192 "));

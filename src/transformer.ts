@@ -556,12 +556,43 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
         //console.log('attribute'.red, attrName, expression.getText())
 
         // root['attrName'] = expression
-        newStatements.push(ts.createStatement(
-            ts.createAssignment(
-                ts.createElementAccess(elementId, ts.createStringLiteral(attrName)),
-                expression
-            )
-        ))
+        const assign = ts.createAssignment(
+            ts.createElementAccess(elementId, ts.createStringLiteral(attrName)),
+            expression
+        )
+
+        const reactives = getAllReactives(context, expression)
+        if (reactives.length === 0) {
+            // assign
+            newStatements.push(ts.createStatement(assign))
+        }
+        else if (reactives.length === 1) {
+            // unsubscribes.push(reactive.subscribe(() => assign))
+            newStatements.push(ts.createStatement(
+                ts.createCall(
+                    ts.createPropertyAccess(unsubscribesId, 'push'),
+                    undefined,
+                    [ts.createCall(
+                        ts.createPropertyAccess(reactives[0], 'subscribe'),
+                        undefined,
+                        [ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign)]
+                    )]
+                )
+            ))
+        } else {
+            // subscribe$(() => assign, unsubscribes, [reactives])
+            newStatements.push(ts.createStatement(
+                ts.createCall(
+                    ts.createIdentifier(SubscribeFunctionName),
+                    undefined,
+                    [
+                        ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign),
+                        unsubscribesId,
+                        ts.createArrayLiteral(reactives),
+                    ]
+                )
+            ))
+        }
     }
 
     if (children) {
@@ -965,6 +996,11 @@ function getAllReactives(context: TransformContext, node: ts.Node, buffer?: ts.E
     if (!buffer) buffer = []
 
     //console.log('searchReactive'.gray, node.getText())
+
+    // skip arrow function
+    if (ts.isArrowFunction(node)) {
+        return buffer
+    }
 
     const type = context.typeChecker.getTypeAtLocation(node)
     if (isAssignable(context.typeChecker, context.reactiveType, type)) {
