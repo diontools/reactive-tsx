@@ -17,6 +17,7 @@ const App: Component<{ max: Reactive<number> }> = props => {
         count: {count.value} (max: {props.max.value})
         <button onclick={() => count.value += 1}>+1</button>
         <button onclick={() => count.value -= 1}>-1</button>
+        <button onclick={() => count.value = 0} disabled={count.value === 0}>reset</button>
         {<div>jsx in expression</div>}
         {count.value > props.max.value && 'over!'}
         {count.value > 0 && ('conditional reactive text: ' + (count.value + props.max.value))}
