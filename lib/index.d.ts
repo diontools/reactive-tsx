@@ -3,8 +3,8 @@ import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Chi
 export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run, combine };
 export declare const reactive: <T>(init: T) => Reactive<T>;
 export declare const reactiveArray: <T>(init: T[]) => ReactiveArray<T>;
-export declare const subscribe$: (action: () => void, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[] | undefined) => void;
-export declare const combineReactive$: <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[] | undefined) => Reactive<T>;
+export declare const subscribe$: (unsubscribes: Unsubscribe[], reactives: Reactive<any>[] | undefined, action: () => void) => void;
+export declare const combineReactive$: <T>(unsubscribes: Unsubscribe[], reactives: Reactive<any>[] | undefined, func: () => T) => Reactive<T>;
 declare type NodeCreator = (unsubscribes: Unsubscribe[]) => Node;
 export declare const conditional$: (node: Node, unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, trueCreate?: NodeCreator | undefined, falseCreate?: NodeCreator | undefined) => void;
 export declare const conditionalText$: (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => void;

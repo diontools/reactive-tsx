@@ -394,14 +394,14 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
                     const expression = node.arguments[0]
                     const reactives = getAllReactives(context, expression)
 
-                    // combineReactive(() => expression, unsubscribes, [reactives])
+                    // combineReactive(unsubscribes, [reactives], () => expression)
                     return ts.createCall(
                         ts.createIdentifier(CombineReactiveFunctionName),
                         undefined,
                         [
-                            ts.createArrowFunction(undefined, undefined, [], undefined, undefined, expression),
                             unsubscribesId,
                             ts.createArrayLiteral(reactives),
+                            ts.createArrowFunction(undefined, undefined, [], undefined, undefined, expression),
                         ]
                     )
                 }
@@ -580,15 +580,15 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
                 )
             ))
         } else {
-            // subscribe$(() => assign, unsubscribes, [reactives])
+            // subscribe$(unsubscribes, [reactives], () => assign)
             newStatements.push(ts.createStatement(
                 ts.createCall(
                     ts.createIdentifier(SubscribeFunctionName),
                     undefined,
                     [
-                        ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign),
                         unsubscribesId,
                         ts.createArrayLiteral(reactives),
+                        ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign),
                     ]
                 )
             ))
@@ -957,11 +957,11 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
         )))
     }
     else {
-        // subscribe(() => textNode.nodeValue = expression, unsubscribes, [reactives])
+        // subscribe(unsubscribes, [reactives], () => textNode.nodeValue = expression)
         statements.push(ts.createStatement(ts.createCall(
             ts.createIdentifier(SubscribeFunctionName),
             undefined,
-            [actionArrowFunction, unsubscribesId, ts.createArrayLiteral(reactives)]
+            [unsubscribesId, ts.createArrayLiteral(reactives), actionArrowFunction]
         )))
 
         context.subscribeFuncUsed = true

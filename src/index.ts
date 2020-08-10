@@ -152,7 +152,7 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
     }
 }
 
-export const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+export const subscribe$ = (unsubscribes: Unsubscribe[], reactives: Reactive<any>[] | undefined, action: () => void) => {
     if (reactives) {
         for (let i = 0; i < reactives.length; i++) {
             unsubscribes.push(reactives[i].subscribe(action, true))
@@ -161,9 +161,9 @@ export const subscribe$ = (action: () => void, unsubscribes: Unsubscribe[], reac
     action()
 }
 
-export const combineReactive$ = <T>(func: () => T, unsubscribes: Unsubscribe[], reactives?: Reactive<any>[]) => {
+export const combineReactive$ = <T>(unsubscribes: Unsubscribe[], reactives: Reactive<any>[] | undefined, func: () => T) => {
     const r = reactive<T>(undefined as any)
-    subscribe$(() => r.value = func(), unsubscribes, reactives)
+    subscribe$(unsubscribes, reactives, () => r.value = func())
     return r
 }
 
@@ -181,7 +181,7 @@ export const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives:
     let currentNode = (current ? trueCreate : falseCreate)(childUnsubscribes)
     node.appendChild(currentNode)
 
-    subscribe$(() => {
+    subscribe$(unsubscribes, reactives, () => {
         const next = condition()
         if (current !== next) {
             const nextNode = (next ? trueCreate : falseCreate)!(childUnsubscribes)
@@ -189,20 +189,20 @@ export const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives:
             currentNode = nextNode
             current = next
         }
-    }, unsubscribes, reactives)
+    })
 }
 
 export const conditionalText$ = (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => {
     let current: boolean
     const text = document.createTextNode('')
 
-    subscribe$(() => {
+    subscribe$(unsubscribes, conditionReactives, () => {
         const next = condition()
         if (current !== next) {
             text.nodeValue = next ? trueString : falseString
             current = next
         }
-    }, unsubscribes, conditionReactives)
+    })
 
     node.appendChild(text)
 }
