@@ -169,42 +169,38 @@ export const combineReactive$ = <T>(unsubscribes: Unsubscribe[], reactives: Reac
 
 type NodeCreator = (unsubscribes: Unsubscribe[]) => Node
 
-export const conditional$ = (node: Node, unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, trueCreate?: NodeCreator, falseCreate?: NodeCreator) => {
+export const conditional$ = (unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, tureReactives: Reactive<any>[] | undefined, trueCreate: NodeCreator | undefined, falseReactives: Reactive<any>[] | undefined, falseCreate: NodeCreator | undefined, onUpdate: (node: Node) => void) => {
     if (!trueCreate || !falseCreate) {
-        const dummy = document.createTextNode('')
-        if (!trueCreate) trueCreate = () => dummy
-        if (!falseCreate) falseCreate = () => dummy
+        const dummyCreate = () => document.createTextNode('')
+        if (!trueCreate) trueCreate = dummyCreate
+        if (!falseCreate) falseCreate = dummyCreate
     }
-
-    const childUnsubscribes: Unsubscribe[] = []
-    let current = condition()
-    let currentNode = (current ? trueCreate : falseCreate)(childUnsubscribes)
-    node.appendChild(currentNode)
-
+    let current: boolean
+    let unsubs: Unsubscribe[] = []
+    const trueUpdate = () => onUpdate(trueCreate!(unsubs))
+    const falseUpdate = () => onUpdate(falseCreate!(unsubs))
     subscribe$(unsubscribes, reactives, () => {
         const next = condition()
         if (current !== next) {
-            const nextNode = (next ? trueCreate : falseCreate)!(childUnsubscribes)
-            node.replaceChild(nextNode, currentNode)
-            currentNode = nextNode
+            unsubs.forEach(x => x())
+            unsubs.length = 0
+            const update = next ? trueUpdate : falseUpdate
+            const reactives = next ? tureReactives : falseReactives
+            reactives ? subscribe$(unsubs, reactives, update) : update()
             current = next
         }
     })
 }
 
-export const conditionalText$ = (node: Node, unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string) => {
+export const conditionalText$ = (unsubscribes: Unsubscribe[], conditionReactives: Reactive<any>[], condition: () => boolean, trueString: string, falseString: string, onUpdate: (text: string) => void) => {
     let current: boolean
-    const text = document.createTextNode('')
-
     subscribe$(unsubscribes, conditionReactives, () => {
         const next = condition()
         if (current !== next) {
-            text.nodeValue = next ? trueString : falseString
+            onUpdate(next ? trueString : falseString)
             current = next
         }
     })
-
-    node.appendChild(text)
 }
 
 export const mapArray$ = (() => {

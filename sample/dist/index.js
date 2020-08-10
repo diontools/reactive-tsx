@@ -153,39 +153,39 @@ const combineReactive$ = (unsubscribes, reactives, func) => {
     subscribe$(unsubscribes, reactives, () => r.value = func());
     return r;
 };
-const conditional$ = (node, unsubscribes, reactives, condition, trueCreate, falseCreate) => {
+const conditional$ = (unsubscribes, reactives, condition, tureReactives, trueCreate, falseReactives, falseCreate, onUpdate) => {
     if (!trueCreate || !falseCreate) {
-        const dummy = document.createTextNode("");
+        const dummyCreate = () => document.createTextNode("");
         if (!trueCreate)
-            trueCreate = () => dummy;
+            trueCreate = dummyCreate;
         if (!falseCreate)
-            falseCreate = () => dummy;
+            falseCreate = dummyCreate;
     }
-    const childUnsubscribes = [];
-    let current = condition();
-    let currentNode = (current ? trueCreate : falseCreate)(childUnsubscribes);
-    node.appendChild(currentNode);
+    let current;
+    let unsubs = [];
+    const trueUpdate = () => onUpdate(trueCreate(unsubs));
+    const falseUpdate = () => onUpdate(falseCreate(unsubs));
     subscribe$(unsubscribes, reactives, () => {
         const next = condition();
         if (current !== next) {
-            const nextNode = (next ? trueCreate : falseCreate)(childUnsubscribes);
-            node.replaceChild(nextNode, currentNode);
-            currentNode = nextNode;
+            unsubs.forEach(x => x());
+            unsubs.length = 0;
+            const update = next ? trueUpdate : falseUpdate;
+            const reactives = next ? tureReactives : falseReactives;
+            reactives ? subscribe$(unsubs, reactives, update) : update();
             current = next;
         }
     });
 };
-const conditionalText$ = (node, unsubscribes, conditionReactives, condition, trueString, falseString) => {
+const conditionalText$ = (unsubscribes, conditionReactives, condition, trueString, falseString, onUpdate) => {
     let current;
-    const text = document.createTextNode("");
     subscribe$(unsubscribes, conditionReactives, () => {
         const next = condition();
         if (current !== next) {
-            text.nodeValue = next ? trueString : falseString;
+            onUpdate(next ? trueString : falseString);
             current = next;
         }
     });
-    node.appendChild(text);
 };
 const mapArray$ = (() => {
     const clear = unsubscribes => {
@@ -276,85 +276,109 @@ const App = (unsubscribes, props) => {
             div9.appendChild(document.createTextNode("jsx in expression"));
         }
         div3.appendChild(div9);
-        conditionalText$(div3, unsubscribes, [count, props.max], () => count.value > props.max.value, 'over!', "");
-        conditional$(div3, unsubscribes, [count], () => count.value > 0, unsubscribes => {
-            const text10 = document.createTextNode("");
-            subscribe$(unsubscribes, [count, props.max], () => text10.nodeValue = ('conditional reactive text: ' + (count.value + props.max.value)));
-            return text10;
-        }, undefined);
-        conditional$(div3, unsubscribes, [count], () => count.value < 0, unsubscribes => {
-            const em11 = document.createElement("em");
+        const text10 = document.createTextNode("");
+        div3.appendChild(text10);
+        conditionalText$(unsubscribes, [count, props.max], () => count.value > props.max.value, 'over!', "", text => text10.nodeValue = text);
+        let currentNode12 = document.createTextNode("");
+        div3.appendChild(currentNode12);
+        conditional$(unsubscribes, [count], () => count.value > 0, [count, props.max], unsubscribes => {
+            const text11 = document.createTextNode("");
+            subscribe$(unsubscribes, [count, props.max], () => text11.nodeValue = ('conditional reactive text: ' + (count.value + props.max.value)));
+            return text11;
+        }, undefined, undefined, node => {
+            div3.replaceChild(node, currentNode12);
+            currentNode12 = node;
+        });
+        let currentNode14 = document.createTextNode("");
+        div3.appendChild(currentNode14);
+        conditional$(unsubscribes, [count], () => count.value < 0, undefined, unsubscribes => {
+            const em13 = document.createElement("em");
             {
-                em11.appendChild(document.createTextNode("under!"));
+                em13.appendChild(document.createTextNode("under!"));
             }
-            return em11;
-        }, undefined);
-        conditional$(div3, unsubscribes, [count], () => count.value > 0, unsubscribes => Item(unsubscribes, {
+            return em13;
+        }, undefined, undefined, node => {
+            div3.replaceChild(node, currentNode14);
+            currentNode14 = node;
+        });
+        let currentNode15 = document.createTextNode("");
+        div3.appendChild(currentNode15);
+        conditional$(unsubscribes, [count], () => count.value > 0, undefined, unsubscribes => Item(unsubscribes, {
             max: props.max,
             children: (parentNode, unsubscribes) => {
                 parentNode.appendChild(document.createTextNode("conditional child component"));
             }
-        }), undefined);
-        conditionalText$(div3, unsubscribes, [count], () => count.value === 0, 'zero', 'non zero');
-        conditional$(div3, unsubscribes, [count], () => count.value === 0, unsubscribes => document.createTextNode('zero' || ""), unsubscribes => {
-            const strong12 = document.createElement("strong");
-            {
-                strong12.appendChild(document.createTextNode("non zero"));
-            }
-            return strong12;
+        }), undefined, undefined, node => {
+            div3.replaceChild(node, currentNode15);
+            currentNode15 = node;
         });
-        const div13 = document.createElement("div");
-        {
-            const button14 = document.createElement("button");
-            button14["onclick"] = () => items.push(items.length.value.toString());
+        const text16 = document.createTextNode("");
+        div3.appendChild(text16);
+        conditionalText$(unsubscribes, [count], () => count.value === 0, 'zero', 'non zero', text => text16.nodeValue = text);
+        let currentNode18 = document.createTextNode("");
+        div3.appendChild(currentNode18);
+        conditional$(unsubscribes, [count], () => count.value === 0, undefined, unsubscribes => document.createTextNode('zero' || ""), undefined, unsubscribes => {
+            const strong17 = document.createElement("strong");
             {
-                button14.appendChild(document.createTextNode("add"));
+                strong17.appendChild(document.createTextNode("non zero"));
             }
-            div13.appendChild(button14);
-        }
-        div3.appendChild(div13);
-        const ul15 = document.createElement("ul");
+            return strong17;
+        }, node => {
+            div3.replaceChild(node, currentNode18);
+            currentNode18 = node;
+        });
+        const div19 = document.createElement("div");
         {
-            mapArray$(ul15, items, (unsubscribes, item, index) => {
-                const li16 = document.createElement("li");
+            const button20 = document.createElement("button");
+            button20["onclick"] = () => items.push(items.length.value.toString());
+            {
+                button20.appendChild(document.createTextNode("add"));
+            }
+            div19.appendChild(button20);
+        }
+        div3.appendChild(div19);
+        const ul21 = document.createElement("ul");
+        {
+            mapArray$(ul21, items, (unsubscribes, item, index) => {
+                const li22 = document.createElement("li");
                 {
-                    const text17 = document.createTextNode("");
-                    unsubscribes.push(index.subscribe(() => text17.nodeValue = index.value));
-                    li16.appendChild(text17);
-                    li16.appendChild(document.createTextNode(": "));
-                    const input18 = document.createElement("input");
-                    unsubscribes.push(item.subscribe(() => input18["value"] = item.value));
-                    input18["oninput"] = (e) => item.value = e.currentTarget.value;
-                    li16.appendChild(input18);
-                    li16.appendChild(document.createTextNode(" \u2192 "));
-                    const text19 = document.createTextNode("");
-                    unsubscribes.push(item.subscribe(() => text19.nodeValue = item.value));
-                    li16.appendChild(text19);
-                    const button20 = document.createElement("button");
-                    button20["onclick"] = () => items.splice(index.value, 1);
+                    const text23 = document.createTextNode("");
+                    unsubscribes.push(index.subscribe(() => text23.nodeValue = index.value));
+                    li22.appendChild(text23);
+                    li22.appendChild(document.createTextNode(": "));
+                    const input24 = document.createElement("input");
+                    unsubscribes.push(item.subscribe(() => input24["value"] = item.value));
+                    input24["oninput"] = (e) => item.value = e.currentTarget.value;
+                    li22.appendChild(input24);
+                    li22.appendChild(document.createTextNode(" \u2192 "));
+                    const text25 = document.createTextNode("");
+                    unsubscribes.push(item.subscribe(() => text25.nodeValue = item.value));
+                    li22.appendChild(text25);
+                    const button26 = document.createElement("button");
+                    button26["onclick"] = () => items.splice(index.value, 1);
                     {
-                        button20.appendChild(document.createTextNode("\u00D7"));
+                        button26.appendChild(document.createTextNode("\u00D7"));
                     }
-                    li16.appendChild(button20);
-                    const button21 = document.createElement("button");
-                    button21["onclick"] = () => items.splice(index.value + 1, 0, Math.random().toString());
+                    li22.appendChild(button26);
+                    const button27 = document.createElement("button");
+                    button27["onclick"] = () => items.splice(index.value + 1, 0, Math.random().toString());
                     {
-                        button21.appendChild(document.createTextNode("insert"));
+                        button27.appendChild(document.createTextNode("insert"));
                     }
-                    li16.appendChild(button21);
+                    li22.appendChild(button27);
                 }
-                return li16;
+                return li22;
             });
         }
-        div3.appendChild(ul15);
+        div3.appendChild(ul21);
         div3.appendChild(Item(unsubscribes, {
             max: props.max,
             children: (parentNode, unsubscribes) => {
-                const span22 = document.createElement("span");
+                const span28 = document.createElement("span");
                 {
-                    span22.appendChild(document.createTextNode("child!"));
+                    span28.appendChild(document.createTextNode("child!"));
                 }
-                parentNode.appendChild(span22);
+                parentNode.appendChild(span28);
             }
         }));
     }
