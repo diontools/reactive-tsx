@@ -728,7 +728,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         && jsxExpression.expression.name.text === ChildrenPropName) {
         const expType = context.typeChecker.getTypeAtLocation(jsxExpression.expression)
         console.log('children'.gray, context.typeChecker.typeToString(expType), jsxExpression.expression.getText())
-        
+
         // props.children && props.chidren(parentNode, unsubscribes)
         return ts.createLogicalAnd(
             jsxExpression.expression,
@@ -742,7 +742,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
 
     // conditional
     if (isConditionalable(jsxExpression.expression)) {
-        return createCallConditional(context, unsubscribesId, jsxExpression.expression, parentNodeId)
+        return createConditionalStatements(context, unsubscribesId, jsxExpression.expression, parentNodeId)
     }
 
     // jsx
@@ -825,8 +825,61 @@ function isConditionalable(node: ts.Node): node is ts.ConditionalExpression | ts
     return false
 }
 
-// conditional() or conditionalText()
-function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier | undefined, onUpdateId?: ts.Identifier, nestCount?: number) {
+// conditional()
+
+function createConditionalStatements(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier): ts.Statement[] {
+    const statements: ts.Statement[] = []
+
+    // let currentNode1 = document.createTextEelement('')
+    const currentNodeId = ts.createIdentifier('currentNode' + context.nodeNumber++)
+    statements.push(ts.createVariableStatement(
+        undefined,
+        ts.createVariableDeclarationList([
+            ts.createVariableDeclaration(
+                currentNodeId,
+                undefined,
+                ts.createCall(createTextNodeMethod, undefined, [ts.createStringLiteral('')])
+            )
+        ], ts.NodeFlags.Let)
+    ))
+
+    // parentNode.appendChild(currentNode)
+    statements.push(ts.createStatement(ts.createCall(
+        ts.createPropertyAccess(parentNodeId, 'appendChild'),
+        undefined,
+        [currentNodeId]
+    )))
+
+    context.replaceNodeFuncUsed = true
+
+    // node => currentNode = replaceNode$(node, currentNode, parentNode)
+    const nodeId = ts.createIdentifier('node')
+    const nodeParameter = createSimpleParameter(nodeId)
+    const onUpdate = ts.createArrowFunction(undefined, undefined, [nodeParameter], undefined, undefined,
+        ts.createAssignment(
+            currentNodeId,
+            ts.createCall(
+                ts.createIdentifier(ReplaceNodeFunctionName),
+                undefined,
+                [nodeId, currentNodeId, parentNodeId]
+            )
+        )
+    )
+
+    statements.push(ts.createStatement(
+        createCallConditionalInternal(
+            context,
+            unsubscribesId,
+            exp,
+            parentNodeId,
+            onUpdate,
+        )
+    ))
+
+    return statements
+}
+
+function createCallConditionalInternal(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier | undefined, onUpdate: ts.Identifier | ts.ArrowFunction, nestCount?: number) {
     nestCount = nestCount || 1
     let nestSpace = ''
     for (let i = 0; i < nestCount; i++) nestSpace += '    '
@@ -852,7 +905,7 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
     // console.log('reactives in false'.gray, reactivesInFalse.map(r => r.getText()), falseExp && falseExp.getText())
 
     // for onUpdate parameter of NodeCreator
-    onUpdateId = onUpdateId || ts.createIdentifier('onUpdate')
+    const onUpdateId = ts.createIdentifier('onUpdate')
     const onUpdateParameter = createSimpleParameter(onUpdateId)
 
     context.conditionalFuncUsed = true
@@ -867,7 +920,7 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
             : isJex(trueExp)
                 ? transformJsxToBody(context, childUnsubscribesId, trueExp, undefined)
                 : isConditionalable(trueExp)
-                    ? statementsToBody(createCallConditional(context, childUnsubscribesId, trueExp, undefined, onUpdateId, nestCount + 1))
+                    ? statementsToBody(createCallConditionalInternal(context, childUnsubscribesId, trueExp, undefined, onUpdateId, nestCount + 1))
                     : createUpdateText(context, onUpdateId, trueExp)
 
     const falseBody =
@@ -876,48 +929,8 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
             : isJex(falseExp)
                 ? transformJsxToBody(context, childUnsubscribesId, falseExp, undefined)
                 : isConditionalable(falseExp)
-                    ? statementsToBody(createCallConditional(context, childUnsubscribesId, falseExp, undefined, onUpdateId, nestCount + 1))
+                    ? statementsToBody(createCallConditionalInternal(context, childUnsubscribesId, falseExp, undefined, onUpdateId, nestCount + 1))
                     : createUpdateText(context, onUpdateId, falseExp)
-
-    const statements: ts.Statement[] = []
-    let onUpdate: ts.Identifier | ts.ArrowFunction = onUpdateId
-    if (parentNodeId) {
-        // let currentNode1 = document.createTextEelement('')
-        const currentNodeId = ts.createIdentifier('currentNode' + context.nodeNumber++)
-        statements.push(ts.createVariableStatement(
-            undefined,
-            ts.createVariableDeclarationList([
-                ts.createVariableDeclaration(
-                    currentNodeId,
-                    undefined,
-                    ts.createCall(createTextNodeMethod, undefined, [ts.createStringLiteral('')])
-                )
-            ], ts.NodeFlags.Let)
-        ))
-
-        // parentNode.appendChild(currentNode)
-        statements.push(ts.createStatement(ts.createCall(
-            ts.createPropertyAccess(parentNodeId, 'appendChild'),
-            undefined,
-            [currentNodeId]
-        )))
-
-        context.replaceNodeFuncUsed = true
-
-        // node => currentNode = replaceNode$(node, currentNode, parentNode)
-        const nodeId = ts.createIdentifier('node')
-        const nodeParameter = createSimpleParameter(nodeId)
-        onUpdate = ts.createArrowFunction(undefined, undefined, [nodeParameter], undefined, undefined,
-            ts.createAssignment(
-                currentNodeId,
-                ts.createCall(
-                    ts.createIdentifier(ReplaceNodeFunctionName),
-                    undefined,
-                    [nodeId, currentNodeId, parentNodeId]
-                )
-            )
-        )
-    }
 
     // conditional(unsubscribes, [reactives], () => condition, [reactives], (unsubscribes) => Node, [reactives], (unsubscribes) => Node, (node) => void)
     const callConditional = ts.createCall(
@@ -934,11 +947,6 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
             addComment(`\n${nestSpace}onUpdate `, ts.getMutableClone(onUpdate)),
         ]
     )
-
-    if (statements.length > 0) {
-        statements.push(ts.createStatement(callConditional))
-        return statements
-    }
 
     return callConditional
 }

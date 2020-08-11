@@ -298,19 +298,19 @@ const App = (unsubscribes, props) => {
             whenTrue */ [count, props.max], (unsubscribes, onUpdate) => onUpdate(('conditional reactive text: ' + (count.value + props.max.value)) || ""), /*
             whenFalse*/ undefined, undefined, /*
             onUpdate */ node => currentNode11 = replaceNode$(node, currentNode11, div3));
-        let currentNode13 = document.createTextNode("");
-        div3.appendChild(currentNode13);
+        let currentNode12 = document.createTextNode("");
+        div3.appendChild(currentNode12);
         conditional$(unsubscribes, /*
             condition*/ [count], () => count.value < 0, /*
             whenTrue */ undefined, (unsubscribes, onUpdate) => {
-            const em12 = document.createElement("em");
+            const em13 = document.createElement("em");
             {
-                em12.appendChild(document.createTextNode("under!"));
+                em13.appendChild(document.createTextNode("under!"));
             }
-            return em12;
+            return em13;
         }, /*
             whenFalse*/ undefined, undefined, /*
-            onUpdate */ node => currentNode13 = replaceNode$(node, currentNode13, div3));
+            onUpdate */ node => currentNode12 = replaceNode$(node, currentNode12, div3));
         let currentNode14 = document.createTextNode("");
         div3.appendChild(currentNode14);
         conditional$(unsubscribes, /*
@@ -330,19 +330,19 @@ const App = (unsubscribes, props) => {
             whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero'), /*
             whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('non zero'), /*
             onUpdate */ node => currentNode15 = replaceNode$(node, currentNode15, div3));
-        let currentNode17 = document.createTextNode("");
-        div3.appendChild(currentNode17);
+        let currentNode16 = document.createTextNode("");
+        div3.appendChild(currentNode16);
         conditional$(unsubscribes, /*
             condition*/ [count], () => count.value === 0, /*
             whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero'), /*
             whenFalse*/ undefined, (unsubscribes, onUpdate) => {
-            const strong16 = document.createElement("strong");
+            const strong17 = document.createElement("strong");
             {
-                strong16.appendChild(document.createTextNode("non zero"));
+                strong17.appendChild(document.createTextNode("non zero"));
             }
-            return strong16;
+            return strong17;
         }, /*
-            onUpdate */ node => currentNode17 = replaceNode$(node, currentNode17, div3));
+            onUpdate */ node => currentNode16 = replaceNode$(node, currentNode16, div3));
         let currentNode18 = document.createTextNode("");
         div3.appendChild(currentNode18);
         conditional$(unsubscribes, /*
