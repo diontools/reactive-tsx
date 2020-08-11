@@ -482,12 +482,12 @@ type TransformContext = {
     nodeNumber: number
 }
 
-type TransformedJsx = ts.CallExpression | ts.Statement | ts.Statement[] | undefined
+type TransformedJsx = ts.Expression | ts.Statement | ts.Statement[] | undefined
 
 function jsxToStatements(jsx: TransformedJsx): ts.Statement[] {
     if (!jsx) return []
     if (Array.isArray(jsx)) return jsx
-    if (ts.isCallExpression(jsx)) return [ts.createStatement(jsx)]
+    if (isExpression(jsx)) return [ts.createStatement(jsx)]
     return [jsx]
 }
 
@@ -728,15 +728,14 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         && jsxExpression.expression.name.text === ChildrenPropName) {
         const expType = context.typeChecker.getTypeAtLocation(jsxExpression.expression)
         console.log('children'.gray, context.typeChecker.typeToString(expType), jsxExpression.expression.getText())
-        return ts.createStatement(
-            // props.children && props.chidren(parentNode, unsubscribes)
-            ts.createLogicalAnd(
+        
+        // props.children && props.chidren(parentNode, unsubscribes)
+        return ts.createLogicalAnd(
+            jsxExpression.expression,
+            ts.createCall(
                 jsxExpression.expression,
-                ts.createCall(
-                    jsxExpression.expression,
-                    undefined,
-                    [parentNodeId, unsubscribesId]
-                )
+                undefined,
+                [parentNodeId, unsubscribesId]
             )
         )
     }
@@ -827,7 +826,7 @@ function isConditionalable(node: ts.Node): node is ts.ConditionalExpression | ts
 }
 
 // conditional() or conditionalText()
-function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier | undefined, onUpdateId?: ts.Identifier, nestCount?: number): ts.CallExpression | ts.Block | ts.Statement[] {
+function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier | undefined, onUpdateId?: ts.Identifier, nestCount?: number) {
     nestCount = nestCount || 1
     let nestSpace = ''
     for (let i = 0; i < nestCount; i++) nestSpace += '    '
@@ -955,7 +954,17 @@ function statementsToBody(node: ts.CallExpression | ts.Block | ts.Statement[] | 
 
 function transformJsxToBody(context: TransformContext, unsubscribesId: ts.Identifier, node: ts.JsxChild, parentNodeId: ts.Identifier | undefined) {
     const jsx = transformJsx(context, unsubscribesId, node, parentNodeId)
-    return !jsx ? undefined : !Array.isArray(jsx) && ts.isCallExpression(jsx) ? jsx : ts.createBlock(jsxToStatements(jsx), true)
+    return !jsx ? undefined : !Array.isArray(jsx) && isExpression(jsx) ? jsx : ts.createBlock(jsxToStatements(jsx), true)
+}
+
+function isExpression(node: ts.Node): node is ts.Expression {
+    switch (node.kind) {
+        case ts.SyntaxKind.CallExpression:
+        case ts.SyntaxKind.BinaryExpression:
+            return true
+        default:
+            return false
+    }
 }
 
 function createUpdateText(context: TransformContext, onUpdateId: ts.Identifier, expression: ts.Expression) {
