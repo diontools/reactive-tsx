@@ -307,7 +307,7 @@ const App = (unsubscribes, props) => {
             {
                 em13.appendChild(document.createTextNode("under!"));
             }
-            return em13;
+            onUpdate(em13);
         }, /*
             whenFalse*/ undefined, undefined, /*
             onUpdate */ node => currentNode12 = replaceNode$(node, currentNode12, div3));
@@ -315,12 +315,12 @@ const App = (unsubscribes, props) => {
         div3.appendChild(currentNode14);
         conditional$(unsubscribes, /*
             condition*/ [count], () => count.value > 0, /*
-            whenTrue */ undefined, (unsubscribes, onUpdate) => Item(unsubscribes, {
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate(Item(unsubscribes, {
             max: props.max,
             children: (parentNode, unsubscribes) => {
                 parentNode.appendChild(document.createTextNode("conditional child component"));
             }
-        }), /*
+        })), /*
             whenFalse*/ undefined, undefined, /*
             onUpdate */ node => currentNode14 = replaceNode$(node, currentNode14, div3));
         let currentNode15 = document.createTextNode("");
@@ -340,7 +340,7 @@ const App = (unsubscribes, props) => {
             {
                 strong17.appendChild(document.createTextNode("non zero"));
             }
-            return strong17;
+            onUpdate(strong17);
         }, /*
             onUpdate */ node => currentNode16 = replaceNode$(node, currentNode16, div3));
         let currentNode18 = document.createTextNode("");
