@@ -288,7 +288,7 @@ const App = (unsubscribes, props) => {
         div3.appendChild(currentNode10);
         conditional$(unsubscribes, /*
             condition*/ [count, props.max], () => count.value > props.max.value, /*
-            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('over!' || ""), /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('over!'), /*
             whenFalse*/ undefined, undefined, /*
             onUpdate */ node => currentNode10 = replaceNode$(node, currentNode10, div3));
         let currentNode11 = document.createTextNode("");
@@ -327,14 +327,14 @@ const App = (unsubscribes, props) => {
         div3.appendChild(currentNode15);
         conditional$(unsubscribes, /*
             condition*/ [count], () => count.value === 0, /*
-            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero' || ""), /*
-            whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('non zero' || ""), /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero'), /*
+            whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('non zero'), /*
             onUpdate */ node => currentNode15 = replaceNode$(node, currentNode15, div3));
         let currentNode17 = document.createTextNode("");
         div3.appendChild(currentNode17);
         conditional$(unsubscribes, /*
             condition*/ [count], () => count.value === 0, /*
-            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero' || ""), /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero'), /*
             whenFalse*/ undefined, (unsubscribes, onUpdate) => {
             const strong16 = document.createElement("strong");
             {
@@ -347,14 +347,14 @@ const App = (unsubscribes, props) => {
         div3.appendChild(currentNode18);
         conditional$(unsubscribes, /*
             condition*/ [count], () => count.value === 0, /*
-            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero' || ""), /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero'), /*
             whenFalse*/ undefined, (unsubscribes, onUpdate) => conditional$(unsubscribes, /*
                 condition*/ [count], () => count.value === 1, /*
-                whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('one' || ""), /*
+                whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('one'), /*
                 whenFalse*/ undefined, (unsubscribes, onUpdate) => conditional$(unsubscribes, /*
                     condition*/ [count], () => count.value === 2, /*
-                    whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('two' || ""), /*
-                    whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('unknown' || ""), /*
+                    whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('two'), /*
+                    whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('unknown'), /*
                     onUpdate */ onUpdate), /*
                 onUpdate */ onUpdate), /*
             onUpdate */ node => currentNode18 = replaceNode$(node, currentNode18, div3));

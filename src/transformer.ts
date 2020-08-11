@@ -961,11 +961,11 @@ function transformJsxToBody(context: TransformContext, unsubscribesId: ts.Identi
 }
 
 function createUpdateText(context: TransformContext, onUpdateId: ts.Identifier, expression: ts.Expression) {
-    // onUpdate(expression || '')
+    // onUpdate(text) or onUpdate(expression || '')
     return ts.createCall(
         onUpdateId,
         undefined,
-        [ts.createLogicalOr(expression, ts.createStringLiteral(''))]
+        [ts.isStringLiteral(expression) ? expression : ts.createLogicalOr(expression, ts.createStringLiteral(''))]
     )
 }
 
