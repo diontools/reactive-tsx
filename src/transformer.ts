@@ -14,7 +14,7 @@ const ReactiveTypeName = 'Reactive'
 const ReactiveArrayTypeName = 'ReactiveArray'
 const SubscribeFunctionName = 'subscribe$'
 const ConditionalFunctionName = 'conditional$'
-const ConditionalTextFunctionName = 'conditionalText$'
+const ReplaceNodeFunctionName = 'replaceNode$'
 const MapArrayFunctionName = 'mapArray$'
 const CombineFunctionName = 'combine'
 const CombineReactiveFunctionName = 'combineReactive$'
@@ -162,9 +162,8 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         context.subscribeFuncUsed = true // force use
     }
 
-    if (context.conditionalTextFuncUsed) {
-        requiredFuncNames.push(ConditionalTextFunctionName)
-        context.subscribeFuncUsed = true // force use
+    if (context.replaceNodeFuncUsed) {
+        requiredFuncNames.push(ReplaceNodeFunctionName)
     }
 
     if (context.subscribeFuncUsed) {
@@ -477,7 +476,7 @@ type TransformContext = {
     combineType: ts.Type
     subscribeFuncUsed?: true
     conditionalFuncUsed?: true
-    conditionalTextFuncUsed?: true
+    replaceNodeFuncUsed?: true
     mapArrayFuncUsed?: true
     combineReactiveFuncUsed?: true
     nodeNumber: number
@@ -814,15 +813,15 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
 }
 
 // is node can conditional()
-function isConditionalable(expression: ts.Expression): expression is ts.ConditionalExpression | ts.BinaryExpression {
+function isConditionalable(node: ts.Node): node is ts.ConditionalExpression | ts.BinaryExpression {
     // && binary expression
-    if (ts.isBinaryExpression(expression)
-        && expression.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
+    if (ts.isBinaryExpression(node)
+        && node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) {
         return true
     }
 
     // conditonExp ? trueExp : falseExp
-    if (ts.isConditionalExpression(expression)) {
+    if (ts.isConditionalExpression(node)) {
         return true
     }
 
@@ -830,7 +829,11 @@ function isConditionalable(expression: ts.Expression): expression is ts.Conditio
 }
 
 // conditional() or conditionalText()
-function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier | undefined): ts.CallExpression | ts.Block | ts.Statement[] {
+function createCallConditional(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier | undefined, onUpdateId?: ts.Identifier, nestCount?: number): ts.CallExpression | ts.Block | ts.Statement[] {
+    nestCount = nestCount || 1
+    let nestSpace = ''
+    for (let i = 0; i < nestCount; i++) nestSpace += '    '
+
     let conditionExp: ts.Expression
     let trueExp: ts.Expression | undefined
     let falseExp: ts.Expression | undefined
@@ -845,83 +848,19 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
     }
 
     const reactivesInCondition = getAllReactives(context, conditionExp)
-    const reactivesInTrue = trueExp ? getAllReactives(context, trueExp) : []
-    const reactivesInFalse = falseExp ? getAllReactives(context, falseExp) : []
-    console.log('reactives in condition'.gray, reactivesInCondition.map(r => r.getText()), conditionExp.getText())
-    console.log('reactives in true'.gray, reactivesInTrue.map(r => r.getText()), trueExp.getText())
-    console.log('reactives in false'.gray, reactivesInFalse.map(r => r.getText()), falseExp && falseExp.getText())
+    const reactivesInTrue = trueExp ? getAllReactives(context, trueExp, true) : []
+    const reactivesInFalse = falseExp ? getAllReactives(context, falseExp, true) : []
+    // console.log('reactives in condition'.gray, reactivesInCondition.map(r => r.getText()), conditionExp.getText())
+    // console.log('reactives in true'.gray, reactivesInTrue.map(r => r.getText()), trueExp.getText())
+    // console.log('reactives in false'.gray, reactivesInFalse.map(r => r.getText()), falseExp && falseExp.getText())
 
-    const isTrueExp = trueExp ? isJex(trueExp) : false
-    const isFalseJsx = falseExp ? isJex(falseExp) : false
-
-    // simple text has not reactive
-    if (!isTrueExp && !isFalseJsx && reactivesInTrue.length === 0 && reactivesInFalse.length === 0) {
-        context.conditionalTextFuncUsed = true
-
-        const statements: ts.Statement[] = []
-        let onUpdate: ts.Identifier | ts.ArrowFunction = ts.createIdentifier('undefined')
-        if (parentNodeId) {
-            // const text1 = document.createTextEelement('')
-            const textNodeId = ts.createIdentifier('text' + context.nodeNumber++)
-            statements.push(ts.createVariableStatement(
-                undefined,
-                ts.createVariableDeclarationList([
-                    ts.createVariableDeclaration(
-                        textNodeId,
-                        undefined,
-                        ts.createCall(createTextNodeMethod, undefined, [ts.createStringLiteral('')])
-                    )
-                ], ts.NodeFlags.Const)
-            ))
-
-            // parentNode.appendChild(text1)
-            statements.push(ts.createStatement(ts.createCall(
-                ts.createPropertyAccess(parentNodeId, 'appendChild'),
-                undefined,
-                [textNodeId]
-            )))
-
-            // text => textNode.nodeValue = text
-            const textId = ts.createIdentifier('text')
-            const nodeParameter = createSimpleParameter(textId)
-            onUpdate = ts.createArrowFunction(
-                undefined,
-                undefined,
-                [nodeParameter],
-                undefined,
-                undefined,
-                ts.createAssignment(
-                    ts.createPropertyAccess(textNodeId, 'nodeValue'),
-                    textId
-                )
-            )
-        }
-
-        // conditionalText(unsubscribes, [reactives], () => condition, trueExp, falseExp, onUpdate)
-        const callConditionalText = ts.createCall(
-            ts.createIdentifier(ConditionalTextFunctionName),
-            undefined,
-            [
-                unsubscribesId,
-                ts.createArrayLiteral(reactivesInCondition),
-                ts.createArrowFunction(undefined, undefined, [], undefined, undefined, conditionExp),
-                trueExp ? trueExp : ts.createStringLiteral(''),
-                falseExp ? falseExp : ts.createStringLiteral(''),
-                onUpdate,
-            ]
-        )
-
-        if (statements.length > 0) {
-            statements.push(ts.createStatement(callConditionalText))
-            return statements
-        }
-
-        return callConditionalText
-    }
+    // for onUpdate parameter of NodeCreator
+    onUpdateId = onUpdateId || ts.createIdentifier('onUpdate')
+    const onUpdateParameter = createSimpleParameter(onUpdateId)
 
     context.conditionalFuncUsed = true
 
-    // for unsubscribes parameter of NodeCreator on conditional
+    // for unsubscribes parameter of NodeCreator
     const childUnsubscribesId = ts.createIdentifier('unsubscribes')
     const childUnsubscribesParameter = createSimpleParameter(childUnsubscribesId)
 
@@ -931,8 +870,8 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
             : isJex(trueExp)
                 ? transformJsxToBody(context, childUnsubscribesId, trueExp, undefined)
                 : isConditionalable(trueExp)
-                    ? statementsToBody(createCallConditional(context, childUnsubscribesId, trueExp, parentNodeId))
-                    : createReactiveTextBlock(context, childUnsubscribesId, trueExp, reactivesInTrue, undefined)
+                    ? statementsToBody(createCallConditional(context, childUnsubscribesId, trueExp, undefined, onUpdateId, nestCount + 1))
+                    : createUpdateText(context, onUpdateId, trueExp)
 
     const falseBody =
         !falseExp
@@ -940,11 +879,11 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
             : isJex(falseExp)
                 ? transformJsxToBody(context, childUnsubscribesId, falseExp, undefined)
                 : isConditionalable(falseExp)
-                    ? statementsToBody(createCallConditional(context, childUnsubscribesId, falseExp, parentNodeId))
-                    : createReactiveTextBlock(context, childUnsubscribesId, falseExp, reactivesInTrue, undefined)
+                    ? statementsToBody(createCallConditional(context, childUnsubscribesId, falseExp, undefined, onUpdateId, nestCount + 1))
+                    : createUpdateText(context, onUpdateId, falseExp)
 
     const statements: ts.Statement[] = []
-    let onUpdate: ts.Identifier | ts.ArrowFunction = ts.createIdentifier('undefined')
+    let onUpdate: ts.Identifier | ts.ArrowFunction = onUpdateId
     if (parentNodeId) {
         // let currentNode1 = document.createTextEelement('')
         const currentNodeId = ts.createIdentifier('currentNode' + context.nodeNumber++)
@@ -966,17 +905,21 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
             [currentNodeId]
         )))
 
-        // node => { parentNode.replaceChild(node, currentNode); currentNode = node; }
+        context.replaceNodeFuncUsed = true
+
+        // node => currentNode = replaceNode$(node, currentNode, parentNode)
         const nodeId = ts.createIdentifier('node')
         const nodeParameter = createSimpleParameter(nodeId)
-        onUpdate = ts.createArrowFunction(undefined, undefined, [nodeParameter], undefined, undefined, ts.createBlock([
-            ts.createStatement(ts.createCall(
-                ts.createPropertyAccess(parentNodeId, 'replaceChild'),
-                undefined,
-                [nodeId, currentNodeId]
-            )),
-            ts.createStatement(ts.createAssignment(currentNodeId, nodeId)),
-        ], true))
+        onUpdate = ts.createArrowFunction(undefined, undefined, [nodeParameter], undefined, undefined,
+            ts.createAssignment(
+                currentNodeId,
+                ts.createCall(
+                    ts.createIdentifier(ReplaceNodeFunctionName),
+                    undefined,
+                    [nodeId, currentNodeId, parentNodeId]
+                )
+            )
+        )
     }
 
     // conditional(unsubscribes, [reactives], () => condition, [reactives], (unsubscribes) => Node, [reactives], (unsubscribes) => Node, (node) => void)
@@ -985,13 +928,13 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
         undefined,
         [
             unsubscribesId,
-            ts.createArrayLiteral(reactivesInCondition),
+            addComment(`\n${nestSpace}condition`, ts.createArrayLiteral(reactivesInCondition)),
             ts.createArrowFunction(undefined, undefined, [], undefined, undefined, conditionExp),
-            reactivesInTrue.length !== 0 ? ts.createArrayLiteral(reactivesInTrue) : ts.createIdentifier('undefined'),
-            trueBody ? ts.createArrowFunction(undefined, undefined, [childUnsubscribesParameter], undefined, undefined, trueBody) : ts.createIdentifier('undefined'),
-            reactivesInFalse.length !== 0 ? ts.createArrayLiteral(reactivesInFalse) : ts.createIdentifier('undefined'),
-            falseBody ? ts.createArrowFunction(undefined, undefined, [childUnsubscribesParameter], undefined, undefined, falseBody) : ts.createIdentifier('undefined'),
-            onUpdate,
+            addComment(`\n${nestSpace}whenTrue `, reactivesInTrue.length !== 0 ? ts.createArrayLiteral(reactivesInTrue) : ts.createIdentifier('undefined')),
+            trueBody ? ts.createArrowFunction(undefined, undefined, [childUnsubscribesParameter, onUpdateParameter], undefined, undefined, trueBody) : ts.createIdentifier('undefined'),
+            addComment(`\n${nestSpace}whenFalse`, reactivesInFalse.length !== 0 ? ts.createArrayLiteral(reactivesInFalse) : ts.createIdentifier('undefined')),
+            falseBody ? ts.createArrowFunction(undefined, undefined, [childUnsubscribesParameter, onUpdateParameter], undefined, undefined, falseBody) : ts.createIdentifier('undefined'),
+            addComment(`\n${nestSpace}onUpdate `, ts.getMutableClone(onUpdate)),
         ]
     )
 
@@ -1003,6 +946,10 @@ function createCallConditional(context: TransformContext, unsubscribesId: ts.Ide
     return callConditional
 }
 
+function addComment<T extends ts.Node>(comment: string, node: T): T {
+    return ts.addSyntheticLeadingComment(node, ts.SyntaxKind.MultiLineCommentTrivia, comment, false)
+}
+
 function statementsToBody(node: ts.CallExpression | ts.Block | ts.Statement[] | undefined): ts.ConciseBody | undefined {
     if (Array.isArray(node)) return ts.createBlock(node, true)
     return node
@@ -1011,6 +958,15 @@ function statementsToBody(node: ts.CallExpression | ts.Block | ts.Statement[] | 
 function transformJsxToBody(context: TransformContext, unsubscribesId: ts.Identifier, node: ts.JsxChild, parentNodeId: ts.Identifier | undefined) {
     const jsx = transformJsx(context, unsubscribesId, node, parentNodeId)
     return !jsx ? undefined : !Array.isArray(jsx) && ts.isCallExpression(jsx) ? jsx : ts.createBlock(jsxToStatements(jsx), true)
+}
+
+function createUpdateText(context: TransformContext, onUpdateId: ts.Identifier, expression: ts.Expression) {
+    // onUpdate(expression || '')
+    return ts.createCall(
+        onUpdateId,
+        undefined,
+        [ts.createLogicalOr(expression, ts.createStringLiteral(''))]
+    )
 }
 
 function createReactiveText(context: TransformContext, unsubscribesId: ts.Identifier, expression: ts.Expression, reactives: ts.Expression[], parentNodeId: ts.Identifier | undefined) {
@@ -1114,7 +1070,7 @@ function createFixedStringLiteral(text: string) {
     return fixed ? ts.createStringLiteral(fixed) : undefined
 }
 
-function getAllReactives(context: TransformContext, node: ts.Node, buffer?: ts.Expression[]): ts.Expression[] {
+function getAllReactives(context: TransformContext, node: ts.Node, skipConditionalable?: boolean, buffer?: ts.Expression[]): ts.Expression[] {
     if (!buffer) buffer = []
 
     //console.log('searchReactive'.gray, node.getText())
@@ -1129,11 +1085,16 @@ function getAllReactives(context: TransformContext, node: ts.Node, buffer?: ts.E
         return buffer
     }
 
+    // skip conditionalable
+    if (skipConditionalable && isConditionalable(node)) {
+        return buffer
+    }
+
     const type = context.typeChecker.getTypeAtLocation(node)
     if (isAssignable(context.typeChecker, context.reactiveType, type)) {
         buffer.push(node as ts.Expression)
     } else {
-        node.forEachChild(child => { getAllReactives(context, child, buffer) })
+        node.forEachChild(child => { getAllReactives(context, child, skipConditionalable, buffer) })
     }
 
     return buffer

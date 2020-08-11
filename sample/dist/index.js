@@ -1,22 +1,27 @@
 const reactive = init => {
     let _v = init;
-    const _actions = [];
+    let _firstLink;
+    let _lastLink;
     return {
         get value() { return _v; },
         set value(v) {
             if (_v !== v) {
                 _v = v;
-                for (let i = 0; i < _actions.length; i++)
-                    _actions[i]();
+                for (let link = _firstLink; link; link = link.next)
+                    link.action();
             }
         },
         subscribe(action, skip) {
-            _actions.push(action);
+            const link = { action, prev: _lastLink };
+            if (_lastLink)
+                _lastLink = _lastLink.next = link;
+            else
+                _firstLink = _lastLink = link;
             !skip && action();
             return () => {
-                const index = _actions.indexOf(action);
-                if (index >= 0)
-                    _actions.splice(index, 1);
+                link.next ? link.next.prev = link.prev : _lastLink = link.prev;
+                link.prev ? link.prev.next = link.next : _firstLink = link.next;
+                link.next = link.prev = undefined;
             };
         }
     };
@@ -155,37 +160,40 @@ const combineReactive$ = (unsubscribes, reactives, func) => {
 };
 const conditional$ = (unsubscribes, reactives, condition, tureReactives, trueCreate, falseReactives, falseCreate, onUpdate) => {
     if (!trueCreate || !falseCreate) {
-        const dummyCreate = () => document.createTextNode("");
+        const dummy = document.createTextNode("");
+        const dummyCreate = (unsubscribes, onUpdate) => { dummy.nodeValue = ""; onUpdate(dummy); };
         if (!trueCreate)
             trueCreate = dummyCreate;
         if (!falseCreate)
             falseCreate = dummyCreate;
     }
     let current;
-    let unsubs = [];
-    const trueUpdate = () => onUpdate(trueCreate(unsubs));
-    const falseUpdate = () => onUpdate(falseCreate(unsubs));
+    let childUnsubscribes = [];
+    const trueUpdate = () => trueCreate(childUnsubscribes, onUpdate);
+    const falseUpdate = () => falseCreate(childUnsubscribes, onUpdate);
+    unsubscribes.push(() => childUnsubscribes.forEach(x => x()));
     subscribe$(unsubscribes, reactives, () => {
         const next = condition();
         if (current !== next) {
-            unsubs.forEach(x => x());
-            unsubs.length = 0;
+            childUnsubscribes.forEach(x => x());
+            childUnsubscribes.length = 0;
             const update = next ? trueUpdate : falseUpdate;
             const reactives = next ? tureReactives : falseReactives;
-            reactives ? subscribe$(unsubs, reactives, update) : update();
+            reactives ? subscribe$(childUnsubscribes, reactives, update) : update();
             current = next;
         }
     });
 };
-const conditionalText$ = (unsubscribes, conditionReactives, condition, trueString, falseString, onUpdate) => {
-    let current;
-    subscribe$(unsubscribes, conditionReactives, () => {
-        const next = condition();
-        if (current !== next) {
-            onUpdate(next ? trueString : falseString);
-            current = next;
+const replaceNode$ = (node, currentNode, parentNode) => {
+    if (typeof node === "string") {
+        if (currentNode.nodeType === 3) {
+            currentNode.nodeValue = node;
+            return currentNode;
         }
-    });
+        node = document.createTextNode(node);
+    }
+    parentNode.replaceChild(node, currentNode);
+    return node;
 };
 const mapArray$ = (() => {
     const clear = unsubscribes => {
@@ -276,57 +284,80 @@ const App = (unsubscribes, props) => {
             div9.appendChild(document.createTextNode("jsx in expression"));
         }
         div3.appendChild(div9);
-        const text10 = document.createTextNode("");
-        div3.appendChild(text10);
-        conditionalText$(unsubscribes, [count, props.max], () => count.value > props.max.value, 'over!', "", text => text10.nodeValue = text);
-        let currentNode12 = document.createTextNode("");
-        div3.appendChild(currentNode12);
-        conditional$(unsubscribes, [count], () => count.value > 0, [count, props.max], unsubscribes => {
-            const text11 = document.createTextNode("");
-            subscribe$(unsubscribes, [count, props.max], () => text11.nodeValue = ('conditional reactive text: ' + (count.value + props.max.value)));
-            return text11;
-        }, undefined, undefined, node => {
-            div3.replaceChild(node, currentNode12);
-            currentNode12 = node;
-        });
+        let currentNode10 = document.createTextNode("");
+        div3.appendChild(currentNode10);
+        conditional$(unsubscribes, /*
+            condition*/ [count, props.max], () => count.value > props.max.value, /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('over!' || ""), /*
+            whenFalse*/ undefined, undefined, /*
+            onUpdate */ node => currentNode10 = replaceNode$(node, currentNode10, div3));
+        let currentNode11 = document.createTextNode("");
+        div3.appendChild(currentNode11);
+        conditional$(unsubscribes, /*
+            condition*/ [count], () => count.value > 0, /*
+            whenTrue */ [count, props.max], (unsubscribes, onUpdate) => onUpdate(('conditional reactive text: ' + (count.value + props.max.value)) || ""), /*
+            whenFalse*/ undefined, undefined, /*
+            onUpdate */ node => currentNode11 = replaceNode$(node, currentNode11, div3));
+        let currentNode13 = document.createTextNode("");
+        div3.appendChild(currentNode13);
+        conditional$(unsubscribes, /*
+            condition*/ [count], () => count.value < 0, /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => {
+            const em12 = document.createElement("em");
+            {
+                em12.appendChild(document.createTextNode("under!"));
+            }
+            return em12;
+        }, /*
+            whenFalse*/ undefined, undefined, /*
+            onUpdate */ node => currentNode13 = replaceNode$(node, currentNode13, div3));
         let currentNode14 = document.createTextNode("");
         div3.appendChild(currentNode14);
-        conditional$(unsubscribes, [count], () => count.value < 0, undefined, unsubscribes => {
-            const em13 = document.createElement("em");
-            {
-                em13.appendChild(document.createTextNode("under!"));
-            }
-            return em13;
-        }, undefined, undefined, node => {
-            div3.replaceChild(node, currentNode14);
-            currentNode14 = node;
-        });
-        let currentNode15 = document.createTextNode("");
-        div3.appendChild(currentNode15);
-        conditional$(unsubscribes, [count], () => count.value > 0, undefined, unsubscribes => Item(unsubscribes, {
+        conditional$(unsubscribes, /*
+            condition*/ [count], () => count.value > 0, /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => Item(unsubscribes, {
             max: props.max,
             children: (parentNode, unsubscribes) => {
                 parentNode.appendChild(document.createTextNode("conditional child component"));
             }
-        }), undefined, undefined, node => {
-            div3.replaceChild(node, currentNode15);
-            currentNode15 = node;
-        });
-        const text16 = document.createTextNode("");
-        div3.appendChild(text16);
-        conditionalText$(unsubscribes, [count], () => count.value === 0, 'zero', 'non zero', text => text16.nodeValue = text);
+        }), /*
+            whenFalse*/ undefined, undefined, /*
+            onUpdate */ node => currentNode14 = replaceNode$(node, currentNode14, div3));
+        let currentNode15 = document.createTextNode("");
+        div3.appendChild(currentNode15);
+        conditional$(unsubscribes, /*
+            condition*/ [count], () => count.value === 0, /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero' || ""), /*
+            whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('non zero' || ""), /*
+            onUpdate */ node => currentNode15 = replaceNode$(node, currentNode15, div3));
+        let currentNode17 = document.createTextNode("");
+        div3.appendChild(currentNode17);
+        conditional$(unsubscribes, /*
+            condition*/ [count], () => count.value === 0, /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero' || ""), /*
+            whenFalse*/ undefined, (unsubscribes, onUpdate) => {
+            const strong16 = document.createElement("strong");
+            {
+                strong16.appendChild(document.createTextNode("non zero"));
+            }
+            return strong16;
+        }, /*
+            onUpdate */ node => currentNode17 = replaceNode$(node, currentNode17, div3));
         let currentNode18 = document.createTextNode("");
         div3.appendChild(currentNode18);
-        conditional$(unsubscribes, [count], () => count.value === 0, undefined, unsubscribes => document.createTextNode('zero' || ""), undefined, unsubscribes => {
-            const strong17 = document.createElement("strong");
-            {
-                strong17.appendChild(document.createTextNode("non zero"));
-            }
-            return strong17;
-        }, node => {
-            div3.replaceChild(node, currentNode18);
-            currentNode18 = node;
-        });
+        conditional$(unsubscribes, /*
+            condition*/ [count], () => count.value === 0, /*
+            whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('zero' || ""), /*
+            whenFalse*/ undefined, (unsubscribes, onUpdate) => conditional$(unsubscribes, /*
+                condition*/ [count], () => count.value === 1, /*
+                whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('one' || ""), /*
+                whenFalse*/ undefined, (unsubscribes, onUpdate) => conditional$(unsubscribes, /*
+                    condition*/ [count], () => count.value === 2, /*
+                    whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('two' || ""), /*
+                    whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('unknown' || ""), /*
+                    onUpdate */ onUpdate), /*
+                onUpdate */ onUpdate), /*
+            onUpdate */ node => currentNode18 = replaceNode$(node, currentNode18, div3));
         const div19 = document.createElement("div");
         {
             const button20 = document.createElement("button");

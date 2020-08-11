@@ -317,6 +317,99 @@ const App = (unsubscribes, props) => {
             [count]
         )
 
+        function newConditional(unsubscribes, reactives, action, tureReactives, trueCreate, falseReactives, falseCreate, onUpdate) {
+            if (trueCreate || falseCreate) {
+                const dummy = document.createTextNode('')
+                if (!trueCreate) trueCreate = dummy
+                if (!falseCreate) falseCreate = dummy
+            }
+            let current
+            let unsubs = []
+            const trueUpdate = () => onUpdate(trueCreate(unsubs))
+            const falseUpdate = () => onUpdate(falseCreate(unsubs))
+            subscribe$(() => {
+                const next = action()
+                if (current !== next) {
+                    unsubs.forEach(x => x())
+                    unsubs.length = 0
+                    const update = next ? trueUpdate : falseUpdate
+                    const reactives = next ? tureReactives : falseReactives
+                    reactives ? subscribe$(update, unsubs, reactives) : update()
+                    current = next
+                }
+            }, unsubscribes, reactives)
+        }
+
+        let currentNode = document.createTextNode('')
+        root.appendChild(currentNode)
+        newConditional(
+            unsubscribes,
+            [count],
+            () => count.value > 0,
+            undefined,
+            unsubscribes => newConditional(
+                unsubscribes,
+                [count],
+                () => count.value === 0,
+                undefined,
+                unsubscribes => document.createTextNode('zero'),
+                undefined,
+                unsubscribes => document.createTextNode('natural'),
+            ),
+            undefined,
+            unsubscribes => newConditional(
+                unsubscribes,
+                [count],
+                () => count.value === -1,
+                unsubscribes => document.createTextNode('minus one'),
+                unsubscribes => newConditional(
+                    unsubscribes,
+                    [count],
+                    () => count.value === -2,
+                    undefined,
+                    unsubscribes => document.createTextNode('minus two'),
+                    [count],
+                    unsubscribes => document.createTextNode('unknown:' + count.value),
+                )
+            ),
+            node => {
+                root.replaceChild(node, currentNode)
+                currentNode = node
+            }
+        )
+        
+        const condition1 = () => count.value === 0
+        const trueExp1 = unsubscribes => document.createTextNode('zero' || "")
+        const falseExp1 = unsubscribes => {
+            const text1 = document.createTextNode((count.value === 1 ? 'one' : count.value === 2 ? 'two' : 'unknown') || "")
+            
+            return text1
+        }
+        let current1 = condition1()
+        let currentNode1 = (current1 ? trueExp1 : falseExp1)(childUnsubscribes)
+        node.appendChild(currentNode1)
+    
+        subscribe$(() => {
+            const next = condition1()
+            if (current1 !== next) {
+                const nextNode = (next ? trueExp1 : falseExp1)(childUnsubscribes)
+                node.replaceChild(nextNode, currentNode1)
+                currentNode1 = nextNode
+                current1 = next
+            }
+        }, unsubscribes, reactives)
+
+        conditional$(
+            div3,
+            unsubscribes,
+            [count],
+            () => count.value === 0,
+            unsubscribes => document.createTextNode('zero' || ""),
+            unsubscribes => {
+                const text1 = document.createTextNode((count.value === 1 ? 'one' : count.value === 2 ? 'two' : 'unknown') || "")
+                return text1
+            });
+
         const div1 = document.createElement('div')
         {
             const button1 = document.createElement('button')

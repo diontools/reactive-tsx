@@ -25,6 +25,7 @@ const App: Component<{ max: Reactive<number> }> = props => {
         {count.value > 0 && <Item max={props.max}>conditional child component</Item>}
         {count.value === 0 ? 'zero' : 'non zero'}
         {count.value === 0 ? 'zero' : <strong>non zero</strong>}
+        {count.value === 0 ? 'zero' : count.value === 1 ? 'one' : count.value === 2 ? 'two' : 'unknown'}
         <div><button onclick={() => items.push(items.length.value.toString())}>add</button></div>
         <ul>
             {items.map((item, index) => <li>
