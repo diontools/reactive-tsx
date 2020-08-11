@@ -803,12 +803,10 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
 
     // parentNode.appendChild(document.createTextNode('expression'))
     console.log('EXPRESSION TEXT'.red, jsxExpression.getText())
-    return ts.createStatement(
-        ts.createCall(
-            ts.createPropertyAccess(parentNodeId, 'appendChild'),
-            undefined,
-            [ts.createCall(createTextNodeMethod, undefined, [jsxExpression.expression])]
-        )
+    return ts.createCall(
+        ts.createPropertyAccess(parentNodeId, 'appendChild'),
+        undefined,
+        [ts.createCall(createTextNodeMethod, undefined, [jsxExpression.expression])]
     )
 }
 
