@@ -656,6 +656,7 @@ function createChildComponentCallExpression(context: TransformContext, unsubscri
     const props: ts.ObjectLiteralElementLike[] = []
     for (const attribute of jsxNode.attributes.properties) {
         if (ts.isJsxSpreadAttribute(attribute)) {
+            // ...expression
             props.push(ts.createSpreadAssignment(attribute.expression))
         } else {
             const attrName = ts.idText(attribute.name)
