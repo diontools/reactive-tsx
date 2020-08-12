@@ -354,7 +354,7 @@ const App = (unsubscribes, props) => {
                 whenFalse*/ undefined, (unsubscribes, onUpdate) => conditional$(unsubscribes, /*
                     condition*/ [count], () => count.value === 2, /*
                     whenTrue */ undefined, (unsubscribes, onUpdate) => onUpdate('two'), /*
-                    whenFalse*/ undefined, (unsubscribes, onUpdate) => onUpdate('unknown'), /*
+                    whenFalse*/ [count], (unsubscribes, onUpdate) => onUpdate('unknown:' + count.value || ""), /*
                     onUpdate */ onUpdate), /*
                 onUpdate */ onUpdate), /*
             onUpdate */ node => currentNode18 = replaceNode$(node, currentNode18, div3));
