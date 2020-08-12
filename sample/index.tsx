@@ -1,9 +1,10 @@
 import { Component, Reactive, Children, reactive, reactiveArray, run, combine } from "reactive-tsx/lib/mono"
 
-const Item: Component<{ max: Reactive<number>, children?: Children }> = (props) => {
+const Item: Component<{ max: Reactive<number>, value?: number, children?: Children }> = (props) => {
     const test = reactive(0)
     return <div>
         Item: {props.max.value + test.value}
+        <div>value: {props.value}</div>
         {props.children}
     </div>
 }
@@ -12,6 +13,11 @@ const App: Component<{ max: Reactive<number> }> = props => {
     const count = reactive(0)
     const items = reactiveArray(['xyz', 'abc'])
     const doubled = combine(count.value * 2)
+
+    const itemProps = {
+        max: props.max,
+        value: 1,
+    }
 
     return <div className="foo">
         count: {count.value} (max: {props.max.value})
@@ -34,9 +40,10 @@ const App: Component<{ max: Reactive<number> }> = props => {
                 <button onclick={() => items.splice(index.value + 1, 0, Math.random().toString())}>insert</button>
             </li>)}
         </ul>
-        <Item max={props.max}>
+        <Item max={props.max} value={count.value}>
             <span>child!</span>
         </Item>
+        <Item {...itemProps}>spread!</Item>
     </div>
 }
 

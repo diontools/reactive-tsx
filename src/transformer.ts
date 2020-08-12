@@ -656,14 +656,14 @@ function createChildComponentCallExpression(context: TransformContext, unsubscri
     const props: ts.ObjectLiteralElementLike[] = []
     for (const attribute of jsxNode.attributes.properties) {
         if (ts.isJsxSpreadAttribute(attribute)) {
-            throw 'jsx spread attribute is not supported yet.'
+            props.push(ts.createSpreadAssignment(attribute.expression))
+        } else {
+            const attrName = ts.idText(attribute.name)
+            const expression = transformJsxAttributeInitializer(attribute.initializer)
+            //console.log('attribute'.red, attrName, expression.getText())
+            // attrName: expression
+            props.push(ts.createPropertyAssignment(attrName, expression))
         }
-
-        const attrName = ts.idText(attribute.name)
-        const expression = transformJsxAttributeInitializer(attribute.initializer)
-        //console.log('attribute'.red, attrName, expression.getText())
-        // attrName: expression
-        props.push(ts.createPropertyAssignment(attrName, expression))
     }
 
     // add children prop
