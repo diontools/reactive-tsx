@@ -1,7 +1,5 @@
 import * as ts from 'typescript';
 import 'colors';
-export interface MyPluginOptions {
+export interface PluginOptions {
 }
-export default function myTransformerPlugin(program: ts.Program, opts: MyPluginOptions): {
-    before(ctx: ts.TransformationContext): (sourceFile: ts.SourceFile) => ts.SourceFile;
-};
+export default function createTransformer(program: ts.Program, opts?: PluginOptions): ts.TransformerFactory<ts.SourceFile>;

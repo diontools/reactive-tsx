@@ -19,15 +19,13 @@ const MapArrayFunctionName = 'mapArray$'
 const CombineFunctionName = 'combine'
 const CombineReactiveFunctionName = 'combineReactive$'
 
-export interface MyPluginOptions {
+export interface PluginOptions {
 }
 
-export default function myTransformerPlugin(program: ts.Program, opts: MyPluginOptions) {
+export default function createTransformer(program: ts.Program, opts?: PluginOptions): ts.TransformerFactory<ts.SourceFile> {
     const typeChecker = program.getTypeChecker()
-    return {
-        before(ctx: ts.TransformationContext) {
-            return (sourceFile: ts.SourceFile) => transformSourceFile(ctx, typeChecker, sourceFile)
-        }
+    return ctx => {
+        return sourceFile => transformSourceFile(ctx, typeChecker, sourceFile)
     }
 }
 
