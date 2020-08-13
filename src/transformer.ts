@@ -1,12 +1,11 @@
 import * as ts from 'typescript'
 import { fixupWhitespaceAndDecodeEntities } from './tsxUtility'
 import { cloneNode } from '@wessberg/ts-clone-node'
-import * as fs from 'fs'
-import * as path from 'path'
 import 'colors'
 
 const ModuleName = 'reactive-tsx'
 const MonoModuleName = 'reactive-tsx/lib/mono'
+const SourceModuleName = 'reactive-tsx/src'
 const ComponentTypeName = 'Component'
 const RunFunctionName = 'run'
 const ChildrenPropName = 'children'
@@ -184,8 +183,12 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         let newStatements: ts.Statement[] = transformedSourceFile.statements.filter(s => s !== transformedImportInfo.importDeclaration)
 
         // get main module source file
-        const sourceText = fs.readFileSync(path.join(__dirname, '../src/index.ts')).toString()
-        const mainModuleFile = ts.createSourceFile('index.ts', sourceText, ts.ScriptTarget.ES2020)
+        const options = ctx.getCompilerOptions()
+        const host = ts.createCompilerHost(options)
+        const mainModule = ts.resolveModuleName(SourceModuleName, transformedSourceFile.fileName, options, host).resolvedModule
+        if (!mainModule) throw 'main module not found.'
+        const mainModuleFile = host.getSourceFile(mainModule.resolvedFileName, ts.ScriptTarget.ES2020)
+        if (!mainModuleFile) throw 'main module not found.'
 
         const insertStatements: ts.Statement[] = []
         for (const statement of mainModuleFile.statements) {
