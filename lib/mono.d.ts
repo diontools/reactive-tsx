@@ -1,4 +1,4 @@
-/// <reference path="../types/global.d.ts" />
+/// <reference path="../types/html.d.ts" />
 export declare type Action = () => void;
 export declare type Unsubscribe = () => void;
 export declare type Reactive<T> = {
@@ -18,9 +18,8 @@ export declare type ReactiveArray<T> = {
     shift: () => T | undefined;
     splice: (start: number, deleteCount?: number, ...items: T[]) => T[];
 };
-export declare type Children = JSX.Element | JSX.Element[];
 export declare type Component<Props = {
-    children?: Children;
+    children?: JsxChildren;
 }> = (props: Props) => JSX.Element;
 export declare const reactive: <T>(init: T) => Reactive<T>;
 export declare const reactiveArray: <T>(init: T[]) => ReactiveArray<T>;

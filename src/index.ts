@@ -1,7 +1,7 @@
-/// <reference path="../types/global.d.ts" />
+/// <reference path="../types/html.d.ts" />
 
-import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run, combine } from './mono'
-export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Children, Component, run, combine }
+import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine } from './mono'
+export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine }
 
 type LinkItem = {
     action: Action

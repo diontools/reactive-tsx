@@ -1,12 +1,4 @@
-declare namespace JSX {
-    interface IntrinsicElements {
-        [name: string]: any
-    }
+interface HTMLWebViewElement extends HTMLElement { }
 
-    interface Element {
-    }
-    
-    interface ElementChildrenAttribute {
-      children: any;
-    }
-}
+type JsxChild = string | number | boolean | JSX.Element | undefined | null
+type JsxChildren = JsxChild | JsxChildren[]
