@@ -19,16 +19,17 @@ const CombineFunctionName = 'combine'
 const CombineReactiveFunctionName = 'combineReactive$'
 
 export interface PluginOptions {
+    host?: ts.CompilerHost
 }
 
 export default function createTransformer(program: ts.Program, opts?: PluginOptions): ts.TransformerFactory<ts.SourceFile> {
     const typeChecker = program.getTypeChecker()
     return ctx => {
-        return sourceFile => transformSourceFile(ctx, typeChecker, sourceFile)
+        return sourceFile => transformSourceFile(ctx, typeChecker, sourceFile, opts)
     }
 }
 
-function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile) {
+function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile, opts: PluginOptions | undefined) {
     console.log('transforming:', sourceFile.fileName.blue)
 
     // skip empty file
@@ -184,7 +185,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
         // get main module source file
         const options = ctx.getCompilerOptions()
-        const host = ts.createCompilerHost(options)
+        const host = opts?.host || ts.createCompilerHost(options)
         const mainModule = ts.resolveModuleName(SourceModuleName, transformedSourceFile.fileName, options, host).resolvedModule
         if (!mainModule) throw 'main module not found.'
         const mainModuleFile = host.getSourceFile(mainModule.resolvedFileName, ts.ScriptTarget.ES2020)
