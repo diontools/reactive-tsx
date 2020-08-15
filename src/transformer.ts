@@ -351,14 +351,15 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
     // unsubscribes identifier for new parameter
     const unsubscribesId = ts.createIdentifier("unsubscribes")
 
-    if (isJex(arrowFunction.body)) {
+    const peeledNode = peelParentheses(arrowFunction.body)
+    if (isJex(peeledNode)) {
         arrowFunction.body = ts.createBlock(
-            jsxToStatements(transformJsx(context, unsubscribesId, arrowFunction.body)),
+            jsxToStatements(transformJsx(context, unsubscribesId, peeledNode)),
             true
         )
     }
-    else if (ts.isBlock(arrowFunction.body)) {
-        arrowFunction.body = transformComponentBody(context, unsubscribesId, arrowFunction.body)
+    else if (ts.isBlock(peeledNode)) {
+        arrowFunction.body = transformComponentBody(context, unsubscribesId, peeledNode)
     }
     else {
         throw 'not supported node: ' + ts.SyntaxKind[arrowFunction.body.kind]
@@ -372,6 +373,10 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
     return newNode
 }
 
+function peelParentheses(node: ts.Node): ts.Node {
+    return ts.isParenthesizedExpression(node) ? peelParentheses(node.expression) : node
+}
+
 function transformComponentBody(context: TransformContext, unsubscribesId: ts.Identifier, body: ts.Block): ts.ConciseBody {
     const newBody = ts.getMutableClone(body)
     const newStatements: ts.Statement[] = []
@@ -380,10 +385,12 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
         if (ts.isReturnStatement(statement)) {
             if (!statement.expression)
                 throw 'returns expression not found.'
-            if (!isJex(statement.expression))
+            
+            const peeledNode = peelParentheses(statement.expression)
+            if (!isJex(peeledNode))
                 throw 'returns expression is not jsx.'
 
-            newStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, statement.expression)))
+            newStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, peeledNode)))
         } else {
             function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
                 // combine function
@@ -779,11 +786,13 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         if (isAssignable(context.typeChecker, context.reactiveArrayType, objType)) {
             const selectExp = jsxExpression.expression.arguments[0]
             if (!ts.isArrowFunction(selectExp)) throw 'select parameter is not arrow function.'
-            if (!isJex(selectExp.body)) throw 'select must returns JSX.'
+
+            const peeledNode = peelParentheses(selectExp.body)
+            if (!isJex(peeledNode)) throw 'select must returns JSX.'
 
             const childUnsubscribesId = ts.createIdentifier('unsubscribes')
 
-            const body = jsxToBody(transformJsx(context, childUnsubscribesId, selectExp.body))
+            const body = jsxToBody(transformJsx(context, childUnsubscribesId, peeledNode))
             if (!body) throw 'body is undefined.'
 
             const unsubscribesParameter = createSimpleParameter(childUnsubscribesId)
