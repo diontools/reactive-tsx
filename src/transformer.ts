@@ -17,6 +17,8 @@ const ReplaceNodeFunctionName = 'replaceNode$'
 const MapArrayFunctionName = 'mapArray$'
 const CombineFunctionName = 'combine'
 const CombineReactiveFunctionName = 'combineReactive$'
+const ElementFunctionName = 'element$'
+const TextFunctionName = 'text$'
 
 export interface PluginOptions {
     host?: ts.CompilerHost
@@ -170,6 +172,14 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
     if (context.subscribeFuncUsed) {
         requiredFuncNames.push(SubscribeFunctionName)
+    }
+
+    if (context.elementFuncUsed) {
+        requiredFuncNames.push(ElementFunctionName)
+    }
+
+    if (context.textFuncUsed) {
+        requiredFuncNames.push(TextFunctionName)
     }
 
     const transformedImportInfo = getImport(transformedSourceFile)
@@ -395,7 +405,7 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
         if (ts.isReturnStatement(statement)) {
             if (!statement.expression)
                 throw 'returns expression not found.'
-            
+
             const peeledNode = peelParentheses(statement.expression)
             if (!isJex(peeledNode))
                 throw 'returns expression is not jsx.'
@@ -480,11 +490,6 @@ function testJsxExpression(node: ts.Node, sourceFile: ts.SourceFile, typeChecker
     console.log('---------------- jsx expression test end -------------------'.red)
 }
 
-// document.createElement, document.createTextNode
-const documentId = ts.createIdentifier('document')
-const createElementMethod = ts.createPropertyAccess(documentId, 'createElement')
-const createTextNodeMethod = ts.createPropertyAccess(documentId, 'createTextNode')
-
 function isJex(node: ts.Node): node is ts.JsxElement | ts.JsxSelfClosingElement {
     return ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)
 }
@@ -501,6 +506,8 @@ type TransformContext = {
     replaceNodeFuncUsed?: true
     mapArrayFuncUsed?: true
     combineReactiveFuncUsed?: true
+    elementFuncUsed?: true
+    textFuncUsed?: true
     nodeNumber: number
 }
 
@@ -528,7 +535,7 @@ function transformJsxChild(context: TransformContext, unsubscribesId: ts.Identif
         return transformJsxOpeningLike(context, unsubscribesId, node, parentNodeId, undefined)
     } else if (ts.isJsxText(node)) {
         if (!parentNodeId) throw 'parentNodeId is undefined.'
-        return transformJsxText(node, parentNodeId)
+        return transformJsxText(context, node, parentNodeId)
     } else if (ts.isJsxExpression(node)) {
         if (!unsubscribesId) throw 'unsubscribesId is undefined.'
         if (!parentNodeId) throw 'parentNodeId is undefined.'
@@ -578,7 +585,9 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
 
     const newStatements: ts.Statement[] = []
 
-    // const element1 = document.createElement('tagName')
+    context.elementFuncUsed = true
+
+    // const element1 = element$('tagName')
     const elementId = ts.createIdentifier(tagNameExp.text + context.nodeNumber++)
     newStatements.push(ts.createVariableStatement(
         undefined,
@@ -586,7 +595,7 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
             [ts.createVariableDeclaration(
                 elementId,
                 undefined,
-                ts.createCall(createElementMethod, undefined, [tagNameExp])
+                ts.createCall(ts.createIdentifier(ElementFunctionName), undefined, [tagNameExp])
             )],
             ts.NodeFlags.Const
         )
@@ -752,15 +761,17 @@ function getTagNameExpression(jsxNode: ts.JsxOpeningLikeElement): ts.StringLiter
 }
 
 // "foo"
-function transformJsxText(jsxText: ts.JsxText, parentNodeId: ts.Identifier) {
+function transformJsxText(context: TransformContext, jsxText: ts.JsxText, parentNodeId: ts.Identifier) {
+    context.textFuncUsed = true
+
     const stringLiteral = createFixedStringLiteral(jsxText.text)
     if (!stringLiteral) return undefined // skip
 
-    // parentNode.appendChild(document.createTextNode('text'))
+    // parentNode.appendChild(text$('text'))
     return ts.createCall(
         ts.createPropertyAccess(parentNodeId, 'appendChild'),
         undefined,
-        [ts.createCall(createTextNodeMethod, undefined, [stringLiteral])]
+        [ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [stringLiteral])]
     )
 }
 
@@ -847,12 +858,14 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         return createReactiveText(context, unsubscribesId, jsxExpression.expression, reactives, parentNodeId)
     }
 
-    // parentNode.appendChild(document.createTextNode('expression'))
+    context.textFuncUsed = true
+
+    // parentNode.appendChild(text$('expression'))
     console.log('EXPRESSION TEXT'.red, jsxExpression.getText())
     return ts.createCall(
         ts.createPropertyAccess(parentNodeId, 'appendChild'),
         undefined,
-        [ts.createCall(createTextNodeMethod, undefined, [jsxExpression.expression])]
+        [ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [jsxExpression.expression])]
     )
 }
 
@@ -876,7 +889,9 @@ function isConditionalable(node: ts.Node): node is ts.ConditionalExpression | ts
 function createConditionalStatements(context: TransformContext, unsubscribesId: ts.Identifier, exp: ts.ConditionalExpression | ts.BinaryExpression, parentNodeId: ts.Identifier): ts.Statement[] {
     const statements: ts.Statement[] = []
 
-    // let currentNode1 = document.createTextEelement('')
+    context.textFuncUsed = true
+
+    // let currentNode1 = text$('')
     const currentNodeId = ts.createIdentifier('currentNode' + context.nodeNumber++)
     statements.push(ts.createVariableStatement(
         undefined,
@@ -884,7 +899,7 @@ function createConditionalStatements(context: TransformContext, unsubscribesId: 
             ts.createVariableDeclaration(
                 currentNodeId,
                 undefined,
-                ts.createCall(createTextNodeMethod, undefined, [ts.createStringLiteral('')])
+                ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [ts.createStringLiteral('')])
             )
         ], ts.NodeFlags.Let)
     ))
@@ -1027,9 +1042,11 @@ function createUpdateText(context: TransformContext, onUpdateId: ts.Identifier, 
 function createReactiveText(context: TransformContext, unsubscribesId: ts.Identifier, expression: ts.Expression, reactives: ts.Expression[], parentNodeId: ts.Identifier | undefined) {
     // simple text
     if (reactives.length === 0) {
-        // document.createTextNode(expression || '')
+        context.textFuncUsed = true
+
+        // text$(expression || '')
         const textNode = ts.createCall(
-            createTextNodeMethod,
+            ts.createIdentifier(TextFunctionName),
             undefined,
             [ts.createLogicalOr(expression, ts.createStringLiteral(''))]
         )
@@ -1049,7 +1066,9 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
 
     const statements: ts.Statement[] = []
 
-    // const text1 = document.createTextNode('')
+    context.textFuncUsed = true
+
+    // const text1 = text$('')
     const textNodeId = ts.createIdentifier('text' + context.nodeNumber++)
     statements.push(ts.createVariableStatement(
         undefined,
@@ -1057,7 +1076,7 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
             [ts.createVariableDeclaration(
                 textNodeId,
                 undefined,
-                ts.createCall(createTextNodeMethod, undefined, [ts.createStringLiteral('')])
+                ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [ts.createStringLiteral('')])
             )],
             ts.NodeFlags.Const
         )

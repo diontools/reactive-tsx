@@ -266,5 +266,5 @@ export const mapArray$ = (() => {
     })
 })()
 
-export const element: typeof document.createElement = document.createElement.bind(document)
-export const text: typeof document.createTextNode = document.createTextNode.bind(document)
+export const element$: typeof document.createElement = document.createElement.bind(document)
+export const text$: typeof document.createTextNode = document.createTextNode.bind(document)

@@ -10,5 +10,5 @@ declare type NodeCreator = (unsubscribes: Unsubscribe[], onUpdate: NodeUpdater) 
 export declare const conditional$: (unsubscribes: Unsubscribe[], reactives: Reactive<any>[], condition: () => boolean, tureReactives: Reactive<any>[] | undefined, trueCreate: NodeCreator | undefined, falseReactives: Reactive<any>[] | undefined, falseCreate: NodeCreator | undefined, onUpdate: NodeUpdater) => void;
 export declare const replaceNode$: (node: Node | string, currentNode: Node, parentNode: Node) => Node;
 export declare const mapArray$: <T>(node: Node, items: ReactiveArray<T>, create: (unsubscribes: Unsubscribe[], item: Reactive<T>, index: Reactive<number>) => Node) => void;
-export declare const element: typeof document.createElement;
-export declare const text: typeof document.createTextNode;
+export declare const element$: typeof document.createElement;
+export declare const text$: typeof document.createTextNode;
