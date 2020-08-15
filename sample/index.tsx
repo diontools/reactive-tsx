@@ -9,6 +9,9 @@ const Item: Component<{ max: Reactive<number>, value?: number, children?: JsxChi
     </div>
 }
 
+const outsideReactive = reactive(0)
+const combinedOutsideReactive = combine(outsideReactive.value * 2)
+
 const App: Component<{ max: Reactive<number> }> = props => {
     const count = reactive(0)
     const items = reactiveArray(['xyz', 'abc'])

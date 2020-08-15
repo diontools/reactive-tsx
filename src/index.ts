@@ -164,16 +164,17 @@ export const reactiveArray = <T>(init: T[]): ReactiveArray<T> => {
     }
 }
 
-export const subscribe$ = (unsubscribes: Unsubscribe[], reactives: Reactive<any>[] | undefined, action: () => void) => {
+export const subscribe$ = (unsubscribes: Unsubscribe[] | undefined, reactives: Reactive<any>[] | undefined, action: () => void) => {
     if (reactives) {
         for (let i = 0; i < reactives.length; i++) {
-            unsubscribes.push(reactives[i].subscribe(action, true))
+            const un = reactives[i].subscribe(action, true)
+            unsubscribes && unsubscribes.push(un)
         }
     }
     action()
 }
 
-export const combineReactive$ = <T>(unsubscribes: Unsubscribe[], reactives: Reactive<any>[] | undefined, func: () => T) => {
+export const combineReactive$ = <T>(unsubscribes: Unsubscribe[] | undefined, reactives: Reactive<any>[] | undefined, func: () => T) => {
     const r = reactive<T>(undefined as any)
     subscribe$(unsubscribes, reactives, () => r.value = func())
     return r

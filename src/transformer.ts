@@ -139,6 +139,10 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
             }
         }
 
+        if (isCombineCall(node)) {
+            return transformCombine(context, undefined, node)
+        }
+
         return ts.visitEachChild(node, visitor, ctx)
     }
 
@@ -394,24 +398,8 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
         } else {
             function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
                 // combine function
-                if (ts.isCallExpression(node)
-                    && ts.isIdentifier(node.expression)
-                    && node.expression.text === CombineFunctionName) {
-
-                    context.combineReactiveFuncUsed = true
-                    const expression = node.arguments[0]
-                    const reactives = getAllReactives(context, expression)
-
-                    // combineReactive(unsubscribes, [reactives], () => expression)
-                    return ts.createCall(
-                        ts.createIdentifier(CombineReactiveFunctionName),
-                        undefined,
-                        [
-                            unsubscribesId,
-                            ts.createArrayLiteral(reactives),
-                            ts.createArrowFunction(undefined, undefined, [], undefined, undefined, expression),
-                        ]
-                    )
+                if (isCombineCall(node)) {
+                    return transformCombine(context, unsubscribesId, node)
                 }
 
                 return ts.visitEachChild(node, visitor, context.ctx)
@@ -424,6 +412,29 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
     newBody.statements = ts.createNodeArray(newStatements)
 
     return newBody
+}
+
+function isCombineCall(node: ts.Node): node is ts.CallExpression {
+    return ts.isCallExpression(node)
+        && ts.isIdentifier(node.expression)
+        && node.expression.text === CombineFunctionName
+}
+
+function transformCombine(context: TransformContext, unsubscribesId: ts.Identifier | undefined, node: ts.CallExpression) {
+    context.combineReactiveFuncUsed = true
+    const expression = node.arguments[0]
+    const reactives = getAllReactives(context, expression)
+
+    // combineReactive(unsubscribes, [reactives], () => expression)
+    return ts.createCall(
+        ts.createIdentifier(CombineReactiveFunctionName),
+        undefined,
+        [
+            unsubscribesId ?? ts.createIdentifier('undefined'),
+            ts.createArrayLiteral(reactives),
+            ts.createArrowFunction(undefined, undefined, [], undefined, undefined, expression),
+        ]
+    )
 }
 
 function preserveMultiLine(node: ts.Node, sourceNode: ts.Node) {

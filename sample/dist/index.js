@@ -148,7 +148,8 @@ const reactiveArray = init => {
 const subscribe$ = (unsubscribes, reactives, action) => {
     if (reactives) {
         for (let i = 0; i < reactives.length; i++) {
-            unsubscribes.push(reactives[i].subscribe(action, true));
+            const un = reactives[i].subscribe(action, true);
+            unsubscribes && unsubscribes.push(un);
         }
     }
     action();
@@ -250,6 +251,8 @@ const Item = (unsubscribes, props) => {
     }
     return div1;
 };
+const outsideReactive = reactive(0);
+const combinedOutsideReactive = combineReactive$(undefined, [outsideReactive], () => outsideReactive.value * 2);
 const App = (unsubscribes, props) => {
     const count = reactive(0);
     const items = reactiveArray(['xyz', 'abc']);
