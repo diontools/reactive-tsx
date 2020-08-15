@@ -316,11 +316,10 @@ function transformRun(node: ts.CallExpression) {
     )))
 
     const statements = [
-        // const node, unsubscribe, child
-        ts.createVariableStatement(undefined, ts.createVariableDeclarationList(
-            [nodeVariable, unsubscribesVariable, childVariable],
-            ts.NodeFlags.Const
-        )),
+        // const node / unsubscribe / child
+        createConstVariableStatement([nodeVariable]),
+        createConstVariableStatement([unsubscribesVariable]),
+        createConstVariableStatement([childVariable]),
         // node.appendChild(child)
         ts.createStatement(ts.createCall(
             ts.createPropertyAccess(nodeId, 'appendChild'),
@@ -339,6 +338,13 @@ function transformRun(node: ts.CallExpression) {
         undefined,
         undefined
     )
+}
+
+function createConstVariableStatement(declarations: ts.VariableDeclaration[]) {
+    return ts.createVariableStatement(undefined, ts.createVariableDeclarationList(
+        declarations,
+        ts.NodeFlags.Const
+    ))
 }
 
 function transformComponent(context: TransformContext, node: ts.VariableDeclaration, defineComponentSymbol: ts.Symbol) {

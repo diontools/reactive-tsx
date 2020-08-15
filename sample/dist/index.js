@@ -433,7 +433,9 @@ const App = (unsubscribes, props) => {
     return div4;
 };
 (() => {
-    const node = document.body, unsubscribes = [], child = App(unsubscribes, { max: reactive(5) });
+    const node = document.body;
+    const unsubscribes = [];
+    const child = App(unsubscribes, { max: reactive(5) });
     node.appendChild(child);
     return () => {
         node.removeChild(child);
