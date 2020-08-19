@@ -31,6 +31,31 @@ export default function createTransformer(program: ts.Program, opts?: PluginOpti
     }
 }
 
+type TransformContext = {
+    sourceFile: ts.SourceFile
+    typeChecker: ts.TypeChecker
+    ctx: ts.TransformationContext
+    reactiveType: ts.Type
+    reactiveArrayType: ts.Type
+    combineType: ts.Type
+    subscribeFuncUsed?: true
+    conditionalFuncUsed?: true
+    replaceNodeFuncUsed?: true
+    mapArrayFuncUsed?: true
+    combineReactiveFuncUsed?: true
+    elementFuncUsed?: true
+    textFuncUsed?: true
+    nodeNumber: number
+
+    subscribeFuncExp: ts.Expression
+    conditionalFuncExp: ts.Expression
+    replaceNodeFuncExp: ts.Expression
+    mapArrayFuncExp: ts.Expression
+    combineReactiveFuncExp: ts.Expression
+    elementFuncExp: ts.Expression
+    textFuncExp: ts.Expression
+}
+
 function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile, opts: PluginOptions | undefined) {
     console.log('transforming:', sourceFile.fileName.blue)
 
@@ -90,6 +115,19 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
     if (!reactiveArrayType) throw 'reactiveArrayType is undefined.'
     if (!combineType) throw 'combineType is undefined.'
 
+    const options = ctx.getCompilerOptions()
+    const module = isMono ? ts.ModuleKind.ES2015 : (options.module || ts.ModuleKind.CommonJS)
+    const isPrefixAccessModule =
+        module === ts.ModuleKind.CommonJS
+        || module === ts.ModuleKind.AMD
+        || module === ts.ModuleKind.UMD
+        || module === ts.ModuleKind.System
+
+    const createModuleMemberAccess = (name: string) =>
+        isPrefixAccessModule
+            ? ts.createPropertyAccess(ts.createIdentifier('reactive_tsx_1'), name)
+            : ts.createIdentifier(name)
+
     const context: TransformContext = {
         sourceFile,
         typeChecker,
@@ -98,6 +136,14 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         reactiveArrayType,
         combineType,
         nodeNumber: 1,
+
+        subscribeFuncExp: createModuleMemberAccess(SubscribeFunctionName),
+        conditionalFuncExp: createModuleMemberAccess(ConditionalFunctionName),
+        replaceNodeFuncExp: createModuleMemberAccess(ReplaceNodeFunctionName),
+        mapArrayFuncExp: createModuleMemberAccess(MapArrayFunctionName),
+        combineReactiveFuncExp: createModuleMemberAccess(CombineReactiveFunctionName),
+        elementFuncExp: createModuleMemberAccess(ElementFunctionName),
+        textFuncExp: createModuleMemberAccess(TextFunctionName),
     }
 
     function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
@@ -443,7 +489,7 @@ function transformCombine(context: TransformContext, unsubscribesId: ts.Identifi
 
     // combineReactive(unsubscribes, [reactives], () => expression)
     return ts.createCall(
-        ts.createIdentifier(CombineReactiveFunctionName),
+        context.combineReactiveFuncExp,
         undefined,
         [
             unsubscribesId ?? ts.createIdentifier('undefined'),
@@ -492,23 +538,6 @@ function testJsxExpression(node: ts.Node, sourceFile: ts.SourceFile, typeChecker
 
 function isJex(node: ts.Node): node is ts.JsxElement | ts.JsxSelfClosingElement {
     return ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node)
-}
-
-type TransformContext = {
-    sourceFile: ts.SourceFile
-    typeChecker: ts.TypeChecker
-    ctx: ts.TransformationContext
-    reactiveType: ts.Type
-    reactiveArrayType: ts.Type
-    combineType: ts.Type
-    subscribeFuncUsed?: true
-    conditionalFuncUsed?: true
-    replaceNodeFuncUsed?: true
-    mapArrayFuncUsed?: true
-    combineReactiveFuncUsed?: true
-    elementFuncUsed?: true
-    textFuncUsed?: true
-    nodeNumber: number
 }
 
 type TransformedJsx = ts.Expression | ts.Statement | ts.Statement[] | undefined
@@ -595,7 +624,7 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
             [ts.createVariableDeclaration(
                 elementId,
                 undefined,
-                ts.createCall(ts.createIdentifier(ElementFunctionName), undefined, [tagNameExp])
+                ts.createCall(context.elementFuncExp, undefined, [tagNameExp])
             )],
             ts.NodeFlags.Const
         )
@@ -639,7 +668,7 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
             // subscribe$(unsubscribes, [reactives], () => assign)
             newStatements.push(ts.createStatement(
                 ts.createCall(
-                    ts.createIdentifier(SubscribeFunctionName),
+                    context.subscribeFuncExp,
                     undefined,
                     [
                         unsubscribesId,
@@ -771,7 +800,7 @@ function transformJsxText(context: TransformContext, jsxText: ts.JsxText, parent
     return ts.createCall(
         ts.createPropertyAccess(parentNodeId, 'appendChild'),
         undefined,
-        [ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [stringLiteral])]
+        [ts.createCall(context.textFuncExp, undefined, [stringLiteral])]
     )
 }
 
@@ -844,7 +873,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
 
             // mapArray(reactiveArray, (item, index, unsubscribes) => Node)
             return ts.createCall(
-                ts.createIdentifier(MapArrayFunctionName),
+                context.mapArrayFuncExp,
                 undefined,
                 [parentNodeId, reactiveArrayExp, createExp]
             )
@@ -865,7 +894,7 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
     return ts.createCall(
         ts.createPropertyAccess(parentNodeId, 'appendChild'),
         undefined,
-        [ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [jsxExpression.expression])]
+        [ts.createCall(context.textFuncExp, undefined, [jsxExpression.expression])]
     )
 }
 
@@ -899,7 +928,7 @@ function createConditionalStatements(context: TransformContext, unsubscribesId: 
             ts.createVariableDeclaration(
                 currentNodeId,
                 undefined,
-                ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [ts.createStringLiteral('')])
+                ts.createCall(context.textFuncExp, undefined, [ts.createStringLiteral('')])
             )
         ], ts.NodeFlags.Let)
     ))
@@ -920,7 +949,7 @@ function createConditionalStatements(context: TransformContext, unsubscribesId: 
         ts.createAssignment(
             currentNodeId,
             ts.createCall(
-                ts.createIdentifier(ReplaceNodeFunctionName),
+                context.replaceNodeFuncExp,
                 undefined,
                 [nodeId, currentNodeId, parentNodeId]
             )
@@ -995,7 +1024,7 @@ function createCallConditionalInternal(context: TransformContext, unsubscribesId
 
     // conditional(unsubscribes, [reactives], () => condition, [reactives], (unsubscribes) => Node, [reactives], (unsubscribes) => Node, (node) => void)
     const callConditional = ts.createCall(
-        ts.createIdentifier(ConditionalFunctionName),
+        context.conditionalFuncExp,
         undefined,
         [
             unsubscribesId,
@@ -1046,7 +1075,7 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
 
         // text$(expression || '')
         const textNode = ts.createCall(
-            ts.createIdentifier(TextFunctionName),
+            context.textFuncExp,
             undefined,
             [ts.createLogicalOr(expression, ts.createStringLiteral(''))]
         )
@@ -1076,7 +1105,7 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
             [ts.createVariableDeclaration(
                 textNodeId,
                 undefined,
-                ts.createCall(ts.createIdentifier(TextFunctionName), undefined, [ts.createStringLiteral('')])
+                ts.createCall(context.textFuncExp, undefined, [ts.createStringLiteral('')])
             )],
             ts.NodeFlags.Const
         )
@@ -1111,7 +1140,7 @@ function createReactiveText(context: TransformContext, unsubscribesId: ts.Identi
     else {
         // subscribe(unsubscribes, [reactives], () => textNode.nodeValue = expression)
         statements.push(ts.createStatement(ts.createCall(
-            ts.createIdentifier(SubscribeFunctionName),
+            context.subscribeFuncExp,
             undefined,
             [unsubscribesId, ts.createArrayLiteral(reactives), actionArrowFunction]
         )))

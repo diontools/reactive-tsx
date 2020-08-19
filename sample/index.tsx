@@ -1,4 +1,4 @@
-import { Component, Reactive, reactive, reactiveArray, run, combine } from "reactive-tsx/lib/mono"
+import { Component, Reactive, reactive, reactiveArray, run, combine } from "reactive-tsx"
 
 const Item: Component<{ max: Reactive<number>, value?: number, children?: JsxChildren }> = (props) => {
     const test = reactive(0)
