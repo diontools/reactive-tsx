@@ -22,7 +22,19 @@ const App: Component<{ max: Reactive<number> }> = props => {
         value: 1,
     }
 
-    return <div className="foo" class={['a', 'b', { c: true, d: count.value !== 0 }, 'e']}>
+    const onCreate = (element: HTMLDivElement) => {
+        console.log('created', element)
+    }
+
+    const onDestroy = (element: HTMLDivElement) => {
+        console.log('destroy', element)
+    }
+
+    return <div
+        onCreate={onCreate}
+        onDestroy={onDestroy}
+        className="foo" class={['a', 'b', { c: true, d: count.value !== 0 }, 'e']}
+    >
         count: {count.value} (max: {props.max.value})
         <button onclick={() => count.value += 1}>+1</button>
         <button onclick={() => count.value -= 1}>-1</button>

@@ -630,6 +630,9 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
         )
     ))
 
+    let onCreateEventExpression: ts.Expression | undefined
+    let onDestroyEventExpression: ts.Expression | undefined
+
     // attribute properties assign
     for (const attribute of jsxNode.attributes.properties) {
         if (ts.isJsxSpreadAttribute(attribute)) {
@@ -639,6 +642,15 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
         let attrName = ts.idText(attribute.name)
         let expression = transformJsxAttributeInitializer(attribute.initializer)
         //console.log('attribute'.red, attrName, expression.getText())
+
+        // lifecycle event
+        if (attrName === 'onCreate') {
+            onCreateEventExpression = expression
+            continue
+        } else if (attrName === 'onDestroy') {
+            onDestroyEventExpression = expression
+            continue
+        }
 
         // transform class attribute
         if (attrName === 'class') {
@@ -697,6 +709,31 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
         if (childStatements.length > 0) {
             newStatements.push(ts.createBlock(childStatements, true))
         }
+    }
+
+    if (onCreateEventExpression) {
+        // onCreateExp(element)
+        newStatements.push(ts.createStatement(ts.createCall(
+            onCreateEventExpression,
+            undefined,
+            [elementId]
+        )))
+    }
+
+    if (onDestroyEventExpression) {
+        // unsubscribes.push(() => onDestroyExp(element))
+        newStatements.push(ts.createStatement(ts.createCall(
+            ts.createPropertyAccess(unsubscribesId, 'push'),
+            undefined,
+            [ts.createArrowFunction(
+                undefined,
+                undefined,
+                [],
+                undefined,
+                undefined,
+                ts.createCall(onDestroyEventExpression, undefined, [elementId])
+            )]
+        )))
     }
 
     if (onUpdateId) {

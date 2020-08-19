@@ -24,8 +24,9 @@ type NativeUIEvent = UIEvent;
 type NativeWheelEvent = WheelEvent;
 
 declare namespace ReactiveTsx {
-    interface ReactiveTsxAttribute {
-        //key?: Key
+    interface ReactiveTsxAttribute<E> {
+        onCreate?: (element: E) => void
+        onDestroy?: (element: E) => void
     }
 
     //
@@ -114,9 +115,9 @@ declare namespace ReactiveTsx {
     // Props / DOM Attributes
     // ----------------------------------------------------------------------
 
-    type DetailedHTMLProps<E extends HTMLAttributes<T>, T> = E & ReactiveTsxAttribute;
+    type DetailedHTMLProps<E extends HTMLAttributes<T>, T> = E & ReactiveTsxAttribute<T>;
 
-    interface SVGProps<T> extends SVGAttributes<T>, ReactiveTsxAttribute {
+    interface SVGProps<T> extends SVGAttributes<T>, ReactiveTsxAttribute<T> {
     }
 
     interface DOMAttributes<T> {

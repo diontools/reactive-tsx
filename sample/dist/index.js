@@ -263,6 +263,12 @@ const App = (unsubscribes, props) => {
         max: props.max,
         value: 1,
     };
+    const onCreate = (element) => {
+        console.log('created', element);
+    };
+    const onDestroy = (element) => {
+        console.log('destroy', element);
+    };
     const div4 = element$("div");
     div4["className"] = "foo";
     unsubscribes.push(count.subscribe(() => div4["className"] = "a" + " b" + (true ? " c" : "") + (count.value !== 0 ? " d" : "") + " e"));
@@ -433,6 +439,8 @@ const App = (unsubscribes, props) => {
                 parentNode.appendChild(text$("spread!"));
             } })));
     }
+    onCreate(div4);
+    unsubscribes.push(() => onDestroy(div4));
     return div4;
 };
 (() => {
