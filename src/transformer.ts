@@ -4,7 +4,7 @@ import { cloneNode } from '@wessberg/ts-clone-node'
 import 'colors'
 
 const ModuleName = 'reactive-tsx'
-const MonoModuleName = 'reactive-tsx/lib/mono'
+const MonoModuleName = 'reactive-tsx/mono'
 const SourceModuleName = 'reactive-tsx/src'
 const ComponentTypeName = 'Component'
 const RunFunctionName = 'run'

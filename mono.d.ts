@@ -1,4 +1,4 @@
-/// <reference path="../types/html.d.ts" />
+/// <reference path="./types/html.d.ts" />
 
 export type Action = () => void
 export type Unsubscribe = () => void

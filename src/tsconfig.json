@@ -13,7 +13,7 @@
     },
     "files": [
         "index.ts",
-        "mono.ts",
+        "../mono.d.ts",
         "transformer.ts"
     ]
 }

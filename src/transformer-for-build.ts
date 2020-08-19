@@ -17,7 +17,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         // remove import ./mono
         if (ts.isImportDeclaration(node)
             && ts.isStringLiteral(node.moduleSpecifier)
-            && node.moduleSpecifier.text === './mono') {
+            && node.moduleSpecifier.text === '../mono') {
             return undefined
         }
 

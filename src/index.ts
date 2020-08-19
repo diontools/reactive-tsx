@@ -1,6 +1,6 @@
 /// <reference path="../types/html.d.ts" />
 
-import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine } from './mono'
+import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine } from '../mono'
 export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine }
 
 type LinkItem = {
