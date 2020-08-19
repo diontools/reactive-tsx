@@ -6,7 +6,8 @@
 
 import * as CSS from 'csstype';
 
-type Class = string
+type ClassChild = string | { [name: string]: unknown }
+type Class = ClassChild | ClassChild[]
 
 type NativeEvent = Event;
 type NativeAnimationEvent = AnimationEvent;
@@ -22,12 +23,8 @@ type NativeTransitionEvent = TransitionEvent;
 type NativeUIEvent = UIEvent;
 type NativeWheelEvent = WheelEvent;
 
-// tslint:disable-next-line:export-just-namespace
-// export = Typerapp;
-// export as namespace Typerapp;
-
 declare namespace ReactiveTsx {
-    interface TyperAppAttribute {
+    interface ReactiveTsxAttribute {
         //key?: Key
     }
 
@@ -117,9 +114,9 @@ declare namespace ReactiveTsx {
     // Props / DOM Attributes
     // ----------------------------------------------------------------------
 
-    type DetailedHTMLProps<E extends HTMLAttributes<T>, T> = E & TyperAppAttribute;
+    type DetailedHTMLProps<E extends HTMLAttributes<T>, T> = E & ReactiveTsxAttribute;
 
-    interface SVGProps<T> extends SVGAttributes<T>, TyperAppAttribute {
+    interface SVGProps<T> extends SVGAttributes<T>, ReactiveTsxAttribute {
     }
 
     interface DOMAttributes<T> {
@@ -518,7 +515,8 @@ declare namespace ReactiveTsx {
     interface HTMLAttributes<T> extends AriaAttributes, DOMAttributes<T> {
         // Standard HTML Attributes
         accessKey?: string;
-        className?: Class;
+        class?: Class;
+        className?: string;
         contentEditable?: boolean;
         contextMenu?: string;
         dir?: string;
@@ -1089,7 +1087,8 @@ declare namespace ReactiveTsx {
     interface SVGAttributes<T> extends AriaAttributes, DOMAttributes<T> {
         // Attributes which also defined in HTMLAttributes
         // See comment in SVGDOMPropertyConfig.js
-        className?: Class;
+        class?: Class;
+        className?: string;
         color?: string;
         height?: number | string;
         id?: string;

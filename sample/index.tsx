@@ -1,4 +1,4 @@
-import { Component, Reactive, reactive, reactiveArray, run, combine } from "reactive-tsx"
+import { Component, Reactive, reactive, reactiveArray, run, combine } from "reactive-tsx/lib/mono"
 
 const Item: Component<{ max: Reactive<number>, value?: number, children?: JsxChildren }> = (props) => {
     const test = reactive(0)
@@ -22,7 +22,7 @@ const App: Component<{ max: Reactive<number> }> = props => {
         value: 1,
     }
 
-    return <div className="foo">
+    return <div className="foo" class={['a', 'b', { c: true, d: count.value !== 0 }, 'e']}>
         count: {count.value} (max: {props.max.value})
         <button onclick={() => count.value += 1}>+1</button>
         <button onclick={() => count.value -= 1}>-1</button>

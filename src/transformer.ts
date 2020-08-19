@@ -633,12 +633,18 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
     // attribute properties assign
     for (const attribute of jsxNode.attributes.properties) {
         if (ts.isJsxSpreadAttribute(attribute)) {
-            throw 'jsx spread attribute is not supported yet.'
+            throw 'jsx spread attribute of element is not supported.'
         }
 
-        const attrName = ts.idText(attribute.name)
-        const expression = transformJsxAttributeInitializer(attribute.initializer)
+        let attrName = ts.idText(attribute.name)
+        let expression = transformJsxAttributeInitializer(attribute.initializer)
         //console.log('attribute'.red, attrName, expression.getText())
+
+        // transform class attribute
+        if (attrName === 'class') {
+            attrName = 'className'
+            expression = transformClassAttributeExpression(expression)
+        }
 
         // root['attrName'] = expression
         const assign = ts.createAssignment(
@@ -787,6 +793,76 @@ function getTagNameExpression(jsxNode: ts.JsxOpeningLikeElement): ts.StringLiter
     // If the first letter is small, it's an HTML tag.
     const isHtmlTag = 'a' <= name[0] && name[0] <= 'z'
     return isHtmlTag ? ts.createStringLiteral(ts.idText(tagName)) : tagName
+}
+
+function transformClassAttributeExpression(expression: ts.Expression): ts.Expression {
+    const buffer: ts.Expression[] = []
+
+    if (ts.isArrayLiteralExpression(expression)) {
+        // (string | {})[]
+        for (const element of expression.elements) {
+            transformClassAttributeChildExpression(element, buffer)
+        }
+    } else {
+        // string | {}
+        transformClassAttributeChildExpression(expression, buffer)
+    }
+
+    // combine expressions by +
+    let concat: ts.Expression = buffer[0]
+    for (let i = 1; i < buffer.length; i++) {
+        concat = ts.createAdd(concat, buffer[i])
+    }
+
+    return concat
+}
+
+function transformClassAttributeChildExpression(expression: ts.Expression, buffer: ts.Expression[]) {
+    if (ts.isStringLiteral(expression)) {
+        buffer.push(
+            ts.createStringLiteral(
+                fixClassNameText(expression.text, buffer.length === 0)
+            )
+        )
+    } else if (ts.isObjectLiteralExpression(expression)) {
+        for (const prop of expression.properties) {
+            if (ts.isPropertyAssignment(prop)) {
+                // (initializer ? ' ' + name : '')
+                buffer.push(transformClassAttributeChildObjectName(prop, buffer.length === 0))
+            } else {
+                throw 'not supported class attribute object property type: ' + ts.SyntaxKind[prop.kind]
+            }
+        }
+    } else {
+        throw 'not supported class attribute child type: ' + ts.SyntaxKind[expression.kind]
+    }
+}
+
+function fixClassNameText(text: string, isFirst: boolean): string {
+    // add space to 2nd or later string
+    text = text.trim()
+    return isFirst ? text : ' ' + text
+}
+
+function transformClassAttributeChildObjectName(prop: ts.PropertyAssignment, isFirst: boolean) {
+    let nameExp: ts.Expression
+    if (ts.isLiteralExpression(prop.name)) {
+        // ' literal'
+        nameExp = ts.createStringLiteral(fixClassNameText(prop.name.text, isFirst))
+    } else if (ts.isComputedPropertyName(prop.name)) {
+        // ' ' + expression
+        nameExp = ts.createAdd(ts.createStringLiteral(' '), prop.name.expression)
+    } else {
+        // ' name'
+        nameExp = ts.createStringLiteral(fixClassNameText(ts.idText(prop.name), isFirst))
+    }
+
+    // initializer ? nameExp : ''
+    return ts.createConditional(
+        prop.initializer,
+        nameExp,
+        ts.createStringLiteral('')
+    )
 }
 
 // "foo"
