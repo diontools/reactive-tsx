@@ -1,6 +1,6 @@
 {
   "name": "reactive-tsx",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "description": "Tiny reactive web framework based on tsx.",
   "type": "commonjs",
   "main": "lib/index.js",
@@ -33,6 +33,7 @@
     "ttypescript": "^1.5.10"
   },
   "files": [
+    "mono.d.ts",
     "src",
     "types",
     "lib"
