@@ -652,50 +652,27 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
             continue
         }
 
+        // style attribute
+        if (attrName === 'style') {
+            createStyleStatements(context, unsubscribesId, elementId, expression, newStatements)
+            continue
+        }
+
         // transform class attribute
         if (attrName === 'class') {
             attrName = 'className'
             expression = transformClassAttributeExpression(expression)
         }
 
-        // root['attrName'] = expression
-        const assign = ts.createAssignment(
-            ts.createElementAccess(elementId, ts.createStringLiteral(attrName)),
-            expression
+        newStatements.push(
+            createElementPropertyUpdateStatement(
+                context,
+                unsubscribesId,
+                elementId,
+                ts.createStringLiteral(attrName),
+                expression
+            )
         )
-
-        const reactives = getAllReactives(context, expression)
-        if (reactives.length === 0) {
-            // assign
-            newStatements.push(ts.createStatement(assign))
-        }
-        else if (reactives.length === 1) {
-            // unsubscribes.push(reactive.subscribe(() => assign))
-            newStatements.push(ts.createStatement(
-                ts.createCall(
-                    ts.createPropertyAccess(unsubscribesId, 'push'),
-                    undefined,
-                    [ts.createCall(
-                        ts.createPropertyAccess(reactives[0], 'subscribe'),
-                        undefined,
-                        [ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign)]
-                    )]
-                )
-            ))
-        } else {
-            // subscribe$(unsubscribes, [reactives], () => assign)
-            newStatements.push(ts.createStatement(
-                ts.createCall(
-                    context.subscribeFuncExp,
-                    undefined,
-                    [
-                        unsubscribesId,
-                        ts.createArrayLiteral(reactives),
-                        ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign),
-                    ]
-                )
-            ))
-        }
     }
 
     if (children) {
@@ -830,6 +807,77 @@ function getTagNameExpression(jsxNode: ts.JsxOpeningLikeElement): ts.StringLiter
     // If the first letter is small, it's an HTML tag.
     const isHtmlTag = 'a' <= name[0] && name[0] <= 'z'
     return isHtmlTag ? ts.createStringLiteral(ts.idText(tagName)) : tagName
+}
+
+function createElementPropertyUpdateStatement(context: TransformContext, unsubscribesId: ts.Identifier, elementExp: ts.Expression, attrExp: ts.Expression, expression: ts.Expression) {
+    // elementExp[attrExp] = expression
+    const assign = ts.createAssignment(
+        ts.createElementAccess(elementExp, attrExp),
+        expression
+    )
+
+    const reactives = getAllReactives(context, expression)
+    if (reactives.length === 0) {
+        // assign
+        return ts.createStatement(assign)
+    }
+    else if (reactives.length === 1) {
+        // unsubscribes.push(reactive.subscribe(() => assign))
+        return ts.createStatement(
+            ts.createCall(
+                ts.createPropertyAccess(unsubscribesId, 'push'),
+                undefined,
+                [ts.createCall(
+                    ts.createPropertyAccess(reactives[0], 'subscribe'),
+                    undefined,
+                    [ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign)]
+                )]
+            )
+        )
+    } else {
+        // subscribe$(unsubscribes, [reactives], () => assign)
+        return ts.createStatement(
+            ts.createCall(
+                context.subscribeFuncExp,
+                undefined,
+                [
+                    unsubscribesId,
+                    ts.createArrayLiteral(reactives),
+                    ts.createArrowFunction(undefined, undefined, [], undefined, undefined, assign),
+                ]
+            )
+        )
+    }
+}
+
+function createStyleStatements(context: TransformContext, unsubscribesId: ts.Identifier, elementId: ts.Identifier, expression: ts.Expression, statements: ts.Statement[]) {
+    if (!ts.isObjectLiteralExpression(expression)) throw 'style must specify an object literal.'
+
+    const styleAccess = ts.createPropertyAccess(elementId, 'style')
+
+    for (const prop of expression.properties) {
+        if (ts.isPropertyAssignment(prop)) {
+            const name =
+                ts.isLiteralExpression(prop.name)
+                    ? ts.createStringLiteral(prop.name.text)
+                    : ts.isComputedPropertyName(prop.name)
+                        ? prop.name.expression
+                        : ts.createStringLiteral(ts.idText(prop.name))
+
+            // element.style[name] = initializer
+            statements.push(
+                createElementPropertyUpdateStatement(
+                    context,
+                    unsubscribesId,
+                    styleAccess,
+                    name,
+                    prop.initializer
+                )
+            )
+        } else {
+            throw 'not supported style attribute child type: ' + ts.SyntaxKind[prop.kind]
+        }
+    }
 }
 
 function transformClassAttributeExpression(expression: ts.Expression): ts.Expression {

@@ -34,6 +34,7 @@ const App: Component<{ max: Reactive<number> }> = props => {
         onCreate={onCreate}
         onDestroy={onDestroy}
         className="foo" class={['a', 'b', { c: true, d: count.value !== 0 }, 'e']}
+        style={{ backgroundColor: count.value ? 'skyblue' : 'azure' }}
     >
         count: {count.value} (max: {props.max.value})
         <button onclick={() => count.value += 1}>+1</button>

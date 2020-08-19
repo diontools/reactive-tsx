@@ -272,6 +272,7 @@ const App = (unsubscribes, props) => {
     const div4 = element$("div");
     div4["className"] = "foo";
     unsubscribes.push(count.subscribe(() => div4["className"] = "a" + " b" + (true ? " c" : "") + (count.value !== 0 ? " d" : "") + " e"));
+    unsubscribes.push(count.subscribe(() => div4.style["backgroundColor"] = count.value ? 'skyblue' : 'azure'));
     {
         div4.appendChild(text$("count: "));
         const text5 = text$("");
