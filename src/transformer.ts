@@ -634,45 +634,53 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
     let onDestroyEventExpression: ts.Expression | undefined
 
     // attribute properties assign
-    for (const attribute of jsxNode.attributes.properties) {
-        if (ts.isJsxSpreadAttribute(attribute)) {
-            throw 'jsx spread attribute of element is not supported.'
-        }
+    if (jsxNode.attributes.properties.length > 0) {
+        const htmlType = getHtmlElementType(context, jsxNode)
 
-        let attrName = ts.idText(attribute.name)
-        let expression = transformJsxAttributeInitializer(attribute.initializer)
-        //console.log('attribute'.red, attrName, expression.getText())
+        for (const attribute of jsxNode.attributes.properties) {
+            if (ts.isJsxSpreadAttribute(attribute)) {
+                throw 'jsx spread attribute of element is not supported.'
+            }
 
-        // lifecycle event
-        if (attrName === 'onCreate') {
-            onCreateEventExpression = expression
-            continue
-        } else if (attrName === 'onDestroy') {
-            onDestroyEventExpression = expression
-            continue
-        }
+            let attrName = ts.idText(attribute.name)
+            let expression = transformJsxAttributeInitializer(attribute.initializer)
+            //console.log('attribute'.red, attrName, expression.getText())
 
-        // style attribute
-        if (attrName === 'style') {
-            createStyleStatements(context, unsubscribesId, elementId, expression, newStatements)
-            continue
-        }
+            // lifecycle event
+            if (attrName === 'onCreate') {
+                onCreateEventExpression = expression
+                continue
+            } else if (attrName === 'onDestroy') {
+                onDestroyEventExpression = expression
+                continue
+            }
 
-        // transform class attribute
-        if (attrName === 'class') {
-            attrName = 'className'
-            expression = transformClassAttributeExpression(expression)
-        }
+            // style attribute
+            if (attrName === 'style') {
+                createStyleStatements(context, unsubscribesId, elementId, expression, newStatements)
+                continue
+            }
 
-        newStatements.push(
-            createElementPropertyUpdateStatement(
-                context,
-                unsubscribesId,
-                elementId,
-                ts.createStringLiteral(attrName),
-                expression
+            // transform class attribute
+            if (attrName === 'class') {
+                attrName = 'className'
+                expression = transformClassAttributeExpression(expression)
+            }
+
+            // check property existence of html element
+            const htmlElementProperty = htmlType && context.typeChecker.getPropertyOfType(htmlType, attrName)
+
+            newStatements.push(
+                createElementPropertyUpdateStatement(
+                    context,
+                    unsubscribesId,
+                    elementId,
+                    ts.createStringLiteral(attrName),
+                    expression,
+                    htmlElementProperty === undefined
+                )
             )
-        )
+        }
     }
 
     if (children) {
@@ -733,6 +741,23 @@ function transformJsxOpeningLike(context: TransformContext, unsubscribesId: ts.I
     }
 
     return newStatements
+}
+
+function getHtmlElementType(context: TransformContext, jsxNode: ts.JsxOpeningLikeElement): ts.Type | undefined {
+    const symbol = context.typeChecker.getSymbolAtLocation(jsxNode.tagName)
+    if (symbol) {
+        const jsxType = context.typeChecker.getTypeOfSymbolAtLocation(symbol, jsxNode.tagName)
+        const tagSymbol = jsxType.aliasSymbol
+        if (tagSymbol) {
+            if (tagSymbol.name === 'DetailedHTMLProps') {
+                if (!jsxType.aliasTypeArguments || jsxType.aliasTypeArguments.length < 2) throw 'not specified HTML Element Type of ' + tagSymbol.name
+                const htmlType = jsxType.aliasTypeArguments[1]
+                return htmlType
+            }
+        }
+    }
+
+    return undefined
 }
 
 function createChildComponentCallExpression(context: TransformContext, unsubscribesId: ts.Identifier, jsxNode: ts.JsxOpeningLikeElement, children: readonly ts.JsxChild[] | undefined, tagNameExp: ts.JsxTagNameExpression) {
@@ -809,12 +834,20 @@ function getTagNameExpression(jsxNode: ts.JsxOpeningLikeElement): ts.StringLiter
     return isHtmlTag ? ts.createStringLiteral(ts.idText(tagName)) : tagName
 }
 
-function createElementPropertyUpdateStatement(context: TransformContext, unsubscribesId: ts.Identifier, elementExp: ts.Expression, attrExp: ts.Expression, expression: ts.Expression) {
-    // elementExp[attrExp] = expression
-    const assign = ts.createAssignment(
-        ts.createElementAccess(elementExp, attrExp),
-        expression
-    )
+function createElementPropertyUpdateStatement(context: TransformContext, unsubscribesId: ts.Identifier, elementExp: ts.Expression, attrExp: ts.Expression, expression: ts.Expression, useSetAttribute: boolean) {
+
+    const assign =
+        useSetAttribute
+            // elementExp.setAttribute(attrExp, expression)
+            ? ts.createCall(
+                ts.createPropertyAccess(elementExp, 'setAttribute'),
+                undefined,
+                [attrExp, expression])
+            // elementExp[attrExp] = expression
+            : ts.createAssignment(
+                ts.createElementAccess(elementExp, attrExp),
+                expression
+            )
 
     const reactives = getAllReactives(context, expression)
     if (reactives.length === 0) {
@@ -871,7 +904,8 @@ function createStyleStatements(context: TransformContext, unsubscribesId: ts.Ide
                     unsubscribesId,
                     styleAccess,
                     name,
-                    prop.initializer
+                    prop.initializer,
+                    false
                 )
             )
         } else {

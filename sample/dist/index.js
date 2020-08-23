@@ -392,6 +392,7 @@ const App = (unsubscribes, props) => {
         }
         div4.appendChild(div20);
         const ul22 = element$("ul");
+        ul22.setAttribute("data-value", "foo");
         {
             mapArray$(ul22, items, (unsubscribes, item, index) => {
                 const li23 = element$("li");

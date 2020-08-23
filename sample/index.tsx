@@ -49,7 +49,7 @@ const App: Component<{ max: Reactive<number> }> = props => {
         {count.value === 0 ? 'zero' : <strong>non zero</strong>}
         {count.value === 0 ? 'zero' : count.value === 1 ? 'one' : count.value === 2 ? 'two' : 'unknown:' + count.value}
         <div><button onclick={() => items.push(items.length.value.toString())}>add</button></div>
-        <ul>
+        <ul data-value="foo">
             {items.map((item, index) => <li>
                 {index.value}: <input value={item.value} oninput={(e: any) => item.value = e.currentTarget.value} /> → {item.value}
                 <button onclick={() => items.splice(index.value, 1)}>×</button>
