@@ -12,10 +12,14 @@ const Item: Component<{ max: Reactive<number>, value?: number, children?: JsxChi
 const outsideReactive = reactive(0)
 const combinedOutsideReactive = combine(outsideReactive.value * 2)
 
+const outsidePartialJsx = <div><span>outside</span></div>
+
 const App: Component<{ max: Reactive<number> }> = props => {
     const count = reactive(0)
     const items = reactiveArray(['xyz', 'abc'])
     const doubled = combine(count.value * 2)
+
+    const partialJsx = <div><span>foo</span></div>
 
     const itemProps = {
         max: props.max,
@@ -60,6 +64,8 @@ const App: Component<{ max: Reactive<number> }> = props => {
             <span>child!</span>
         </Item>
         <Item {...itemProps}>spread!</Item>
+        {partialJsx}
+        {outsidePartialJsx}
     </div>
 }
 

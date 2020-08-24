@@ -187,8 +187,14 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
             }
         }
 
+        // combine function
         if (isCombineCall(node)) {
             return transformCombine(context, undefined, node)
+        }
+
+        // partial jsx
+        if (isJex(node)) {
+            return transformJsxChildren(context, [node])
         }
 
         return ts.visitEachChild(node, visitor, ctx)
@@ -462,6 +468,11 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
                 // combine function
                 if (isCombineCall(node)) {
                     return transformCombine(context, unsubscribesId, node)
+                }
+
+                // partial jsx
+                if (isJex(node)) {
+                    return transformJsxChildren(context, [node])
                 }
 
                 return ts.visitEachChild(node, visitor, context.ctx)
@@ -777,36 +788,12 @@ function createChildComponentCallExpression(context: TransformContext, unsubscri
     }
 
     // add children prop
-    if (children) {
-        const childParentNodeId = ts.createIdentifier('parentNode')
-        const childUnsubscribesId = ts.createIdentifier('unsubscribes')
-
-        const childStatements: ts.Statement[] = []
-        for (let i = 0; i < children.length; i++) {
-            const child = children[i]
-            childStatements.push(...jsxToStatements(transformJsxChild(context, unsubscribesId, child, childParentNodeId)))
-        }
-
-        if (childStatements.length > 0) {
-            // children: (node, unsucribes) => {...}
-            props.push(ts.createPropertyAssignment(
-                ts.createIdentifier("children"),
-                ts.createArrowFunction(
-                    undefined,
-                    undefined,
-                    [
-                        createSimpleParameter(childParentNodeId),
-                        createSimpleParameter(childUnsubscribesId)
-                    ],
-                    undefined,
-                    ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-                    ts.createBlock(
-                        childStatements,
-                        true
-                    )
-                )
-            ))
-        }
+    if (children && children.length > 0) {
+        // children: (node, unsucribes) => {...}
+        props.push(ts.createPropertyAssignment(
+            ts.createIdentifier(ChildrenPropName),
+            transformJsxChildren(context, children)
+        ))
     }
 
     // call child component
@@ -818,6 +805,33 @@ function createChildComponentCallExpression(context: TransformContext, unsubscri
             unsubscribesId,
             ts.createObjectLiteral(props, true) // { props }
         ]
+    )
+}
+
+function transformJsxChildren(context: TransformContext, children: readonly ts.JsxChild[]) {
+    const childParentNodeId = ts.createIdentifier('parentNode')
+    const childUnsubscribesId = ts.createIdentifier('unsubscribes')
+
+    const childStatements: ts.Statement[] = []
+    for (let i = 0; i < children.length; i++) {
+        const child = children[i]
+        childStatements.push(...jsxToStatements(transformJsxChild(context, childUnsubscribesId, child, childParentNodeId)))
+    }
+
+    // (node, unsucribes) => {...}
+    return ts.createArrowFunction(
+        undefined,
+        undefined,
+        [
+            createSimpleParameter(childParentNodeId),
+            createSimpleParameter(childUnsubscribesId)
+        ],
+        undefined,
+        ts.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
+        ts.createBlock(
+            childStatements,
+            true
+        )
     )
 }
 
@@ -1003,23 +1017,6 @@ function transformJsxText(context: TransformContext, jsxText: ts.JsxText, parent
 function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Identifier, jsxExpression: ts.JsxExpression, parentNodeId: ts.Identifier) {
     if (!jsxExpression.expression) return []
 
-    // props.children
-    if (ts.isPropertyAccessExpression(jsxExpression.expression)
-        && jsxExpression.expression.name.text === ChildrenPropName) {
-        const expType = context.typeChecker.getTypeAtLocation(jsxExpression.expression)
-        console.log('children'.gray, context.typeChecker.typeToString(expType), jsxExpression.expression.getText())
-
-        // props.children && props.chidren(parentNode, unsubscribes)
-        return ts.createLogicalAnd(
-            jsxExpression.expression,
-            ts.createCall(
-                jsxExpression.expression,
-                undefined,
-                [parentNodeId, unsubscribesId]
-            )
-        )
-    }
-
     // conditional
     if (isConditionalable(jsxExpression.expression)) {
         return createConditionalStatements(context, unsubscribesId, jsxExpression.expression, parentNodeId)
@@ -1082,6 +1079,28 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         return createReactiveText(context, unsubscribesId, jsxExpression.expression, reactives, parentNodeId)
     }
 
+    // children render
+    const jsxElementInfo = isJsxElementType(context, jsxExpression.expression)
+    if (jsxElementInfo) {
+        // chidren(parentNode, unsubscribes)
+        const childrenCall = ts.createCall(
+            jsxExpression.expression,
+            undefined,
+            [parentNodeId, unsubscribesId]
+        )
+
+        if (jsxElementInfo.isNullable) {
+            // children && chidren(...)
+            return ts.createLogicalAnd(
+                jsxExpression.expression,
+                childrenCall
+            )
+        }
+
+        // children(...)
+        return childrenCall
+    }
+
     context.textFuncUsed = true
 
     // parentNode.appendChild(text$('expression'))
@@ -1091,6 +1110,32 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
         undefined,
         [ts.createCall(context.textFuncExp, undefined, [jsxExpression.expression])]
     )
+}
+
+function isJsxElementType(context: TransformContext, node: ts.Node): { isNullable: boolean } | undefined {
+    const expType = context.typeChecker.getTypeAtLocation(node)
+    //console.log('children'.gray, context.typeChecker.typeToString(expType), node.getText())
+
+    let isNullable = false
+    let isElement = false
+
+    if (isElementSymbol(expType.symbol)) {
+        isElement = true
+    } else if (expType.isUnion()) {
+        for (const t of expType.types) {
+            if (isElementSymbol(t.symbol)) {
+                isElement = true
+            } else if ((t.flags & ts.TypeFlags.Undefined) !== 0) {
+                isNullable = true
+            }
+        }
+    }
+
+    return isElement ? { isNullable } : undefined
+}
+
+function isElementSymbol(symbol: ts.Symbol) {
+    return symbol && symbol.name === 'Element'
 }
 
 // is node can conditional()
