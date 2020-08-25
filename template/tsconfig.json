@@ -1,0 +1,8 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "module": "ES2015",
+        "moduleResolution": "Node",
+        "jsx": "preserve"
+    }
+}
