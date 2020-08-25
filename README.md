@@ -13,6 +13,10 @@ Create using the template by [degit](https://github.com/Rich-Harris/degit).
 
 ```
 npx degit diontools/reactive-tsx/template new-app-dir
+
+cd new-app-dir
+npm install
+npm start -- --open
 ```
 
 ### Manual Setup
