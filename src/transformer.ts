@@ -54,6 +54,9 @@ type TransformContext = {
     combineReactiveFuncExp: ts.Expression
     elementFuncExp: ts.Expression
     textFuncExp: ts.Expression
+
+    getMainVisitor: (unsubscribesId: ts.Identifier | undefined) => ts.Visitor
+    visitMain: <T extends ts.Node>(node: T, unsubscribesId: ts.Identifier | undefined) => T
 }
 
 function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.TypeChecker, sourceFile: ts.SourceFile, opts: PluginOptions | undefined) {
@@ -144,63 +147,70 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         combineReactiveFuncExp: createModuleMemberAccess(CombineReactiveFunctionName),
         elementFuncExp: createModuleMemberAccess(ElementFunctionName),
         textFuncExp: createModuleMemberAccess(TextFunctionName),
+
+        getMainVisitor: undefined as any,
+        visitMain: undefined as any,
     }
 
-    function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
-        if (removingNodes.indexOf(node) >= 0) {
-            console.log('remove'.yellow, node.getText())
-            return undefined
-        }
+    context.getMainVisitor = (unsubscribesId) => {
+        return function visitor(node): ts.VisitResult<ts.Node> {
+            if (removingNodes.indexOf(node) >= 0) {
+                console.log('remove'.yellow, node.getText())
+                return undefined
+            }
 
-        // find component variable declaration
-        if (componentType) {
-            if (ts.isVariableDeclaration(node) && node.type && ts.isTypeReferenceNode(node.type)) {
-                const defineComponentSymbol = typeChecker.getSymbolAtLocation(node.name)
-                if (defineComponentSymbol) {
-                    const referencedType = getInterfaceType(typeChecker, node.type.typeName)
-                    if (referencedType === componentType) {
-                        const type = typeChecker.getTypeAtLocation(node)
-                        if (!type.aliasTypeArguments || !type.aliasTypeArguments.length)
-                            throw 'type argument is not specified.'
-                        const propType = type.aliasTypeArguments[0]
-                        console.log(
-                            'Define Component'.green,
-                            'name:',
-                            typeChecker.symbolToString(defineComponentSymbol).yellow,
-                            'prop:',
-                            typeChecker.typeToString(propType).cyan)
+            // find component variable declaration
+            if (componentType) {
+                if (ts.isVariableDeclaration(node) && node.type && ts.isTypeReferenceNode(node.type)) {
+                    const defineComponentSymbol = typeChecker.getSymbolAtLocation(node.name)
+                    if (defineComponentSymbol) {
+                        const referencedType = getInterfaceType(typeChecker, node.type.typeName)
+                        if (referencedType === componentType) {
+                            const type = typeChecker.getTypeAtLocation(node)
+                            if (!type.aliasTypeArguments || !type.aliasTypeArguments.length)
+                                throw 'type argument is not specified.'
+                            const propType = type.aliasTypeArguments[0]
+                            console.log(
+                                'Define Component'.green,
+                                'name:',
+                                typeChecker.symbolToString(defineComponentSymbol).yellow,
+                                'prop:',
+                                typeChecker.typeToString(propType).cyan)
 
-                        return transformComponent(context, node, defineComponentSymbol)
+                            return transformComponent(context, node, defineComponentSymbol)
+                        }
                     }
                 }
             }
-        }
 
-        // find run function calling
-        if (runType) {
-            if (ts.isCallExpression(node)) {
-                const callFuncType = typeChecker.getTypeAtLocation(node.expression)
-                if (callFuncType === runType) {
-                    console.log('Detect run'.green, node.getText())
-                    return transformRun(node)
+            // find run function calling
+            if (runType) {
+                if (ts.isCallExpression(node)) {
+                    const callFuncType = typeChecker.getTypeAtLocation(node.expression)
+                    if (callFuncType === runType) {
+                        console.log('Detect run'.green, node.getText())
+                        return transformRun(context, node)
+                    }
                 }
             }
-        }
 
-        // combine function
-        if (isCombineCall(node)) {
-            return transformCombine(context, undefined, node)
-        }
+            // combine function
+            if (isCombineCall(node)) {
+                return transformCombine(context, unsubscribesId, node)
+            }
 
-        // partial jsx
-        if (isJex(node)) {
-            return transformJsxChildren(context, [node])
-        }
+            // partial jsx
+            if (isJex(node)) {
+                return transformJsxChildren(context, [node])
+            }
 
-        return ts.visitEachChild(node, visitor, ctx)
+            return ts.visitEachChild(node, visitor, ctx)
+        }
     }
 
-    let transformedSourceFile = ts.visitEachChild(sourceFile, visitor, ctx)
+    context.visitMain = (node, unsubscribesId) => ts.visitEachChild(node, context.getMainVisitor(unsubscribesId), context.ctx)
+
+    let transformedSourceFile = context.visitMain(sourceFile, undefined)
 
     const requiredFuncNames: string[] = []
 
@@ -324,10 +334,10 @@ function getTypeOfExportsByName(typeChecker: ts.TypeChecker, exports: ts.SymbolT
     return typeChecker.getDeclaredTypeOfSymbol(symbol)
 }
 
-function transformRun(node: ts.CallExpression) {
+function transformRun(context: TransformContext, node: ts.CallExpression) {
     const nodeExp = node.arguments[0]
     const componentExp = node.arguments[1]
-    const propExp = node.arguments[2]
+    const propExp = context.visitMain(node.arguments[2], undefined)
 
     // node = nodeExp
     const nodeId = ts.createIdentifier('node')
@@ -464,21 +474,7 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
 
             newStatements.push(...jsxToStatements(transformJsx(context, unsubscribesId, peeledNode)))
         } else {
-            function visitor(node: ts.Node): ts.VisitResult<ts.Node> {
-                // combine function
-                if (isCombineCall(node)) {
-                    return transformCombine(context, unsubscribesId, node)
-                }
-
-                // partial jsx
-                if (isJex(node)) {
-                    return transformJsxChildren(context, [node])
-                }
-
-                return ts.visitEachChild(node, visitor, context.ctx)
-            }
-
-            newStatements.push(ts.visitEachChild(statement, visitor, context.ctx))
+            newStatements.push(context.visitMain(statement, unsubscribesId))
         }
     }
 

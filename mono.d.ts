@@ -34,6 +34,13 @@ export declare const reactive: <T>(init: T) => Reactive<T>
 
 export declare const reactiveArray: <T>(init: T[]) => ReactiveArray<T>
 
-export declare function run<Props>(node: HTMLElement, component: Component<Props>, props: Props): Unsubscribe
+export declare function run<CProps, Props>(node: HTMLElement, component: Component<CProps>, props: Exact<Props, CProps>): Unsubscribe
 
 export declare function combine<T>(value: T): Reactive<T>
+
+type Exact<T, R> =
+    T extends R
+    ? R extends T
+    ? T
+    : never
+    : never

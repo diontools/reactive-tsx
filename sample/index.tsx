@@ -1,6 +1,6 @@
 import { Component, Reactive, reactive, reactiveArray, run, combine } from "reactive-tsx/mono"
 
-const Item: Component<{ max: Reactive<number>, value?: number, children?: JsxChildren }> = (props) => {
+const Item: Component<{ max: Reactive<number>, value?: number, children: JsxChildren }> = (props) => {
     const test = reactive(0)
     return <div>
         Item: {props.max.value + test.value}

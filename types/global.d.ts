@@ -1,4 +1,4 @@
 interface HTMLWebViewElement extends HTMLElement { }
 
-type JsxChild = string | number | boolean | JSX.Element | undefined | null
-type JsxChildren = JsxChild | JsxChildren[]
+type JsxChild = JSX.Element | string | number | boolean | null
+type JsxChildren = JsxChild | (JsxChildren | undefined)[]

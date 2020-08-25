@@ -249,7 +249,7 @@ const Item = (unsubscribes, props) => {
             div3.appendChild(text$(props.value));
         }
         div1.appendChild(div3);
-        props.children && props.children(div1, unsubscribes);
+        props.children(div1, unsubscribes);
     }
     return div1;
 };
