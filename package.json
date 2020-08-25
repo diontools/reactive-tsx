@@ -1,6 +1,6 @@
 {
   "name": "reactive-tsx",
-  "version": "0.0.43",
+  "version": "0.0.44",
   "description": "Tiny reactive web framework based on tsx.",
   "type": "commonjs",
   "main": "lib/index.js",
