@@ -45,73 +45,144 @@ rules: [
 ]
 ```
 
-## Convertions
-index.tsx
+## Functions
+
+### `Component` type
+`Component` is a simple function type that returns a JSX element.
 
 ```tsx
-import { Component, reactive, run } from 'reactive-tsx'
-
-const App: Component = () => {
-    const count = reactive(0)
-
-    return <div>
-        count: {count.value}
-        <div>
-            <button onclick={() => count.value++}>+1</button>
-            <button onclick={() => count.value--}>-1</button>
-            <button onclick={() => count.value = 0}>reset</button>
-        </div>
-    </div>
+const App: Component = props => {
+    return <div />
 }
+```
 
+`Component` has one parameter. Type of this one can be specified with type argument. Default type is below.
+
+```tsx
+Component<{ children?: JsxChildren }>
+```
+
+### `run` function
+`run` is function to start the app.
+
+```tsx
 run(document.body, App, {})
 ```
 
-This code transforms to the following JavaScript.
+This arguments specifies a destination node, component and props of component.
+
+This function returns the function to remove a node that has been added.
+
+```tsx
+const destroy = run(...)
+
+destroy() // remove appended nodes
+```
+
+### `reactive` function
+`reactive`はリアクティブなオブジェクト(`Reactive<T>`)を生成する関数です。
+このオブジェクトは`value`プロパティと`subscribe`メソッドを持ち、`subscribe`で登録したコールバック関数を`value`を変更するたびに呼び出します。
+
+```tsx
+const count = reactive(0) // create Reactive<number> with initial 0
+count.subscribe(() => console.log(count.value))
+count.value = 1
+count.value = 2
+```
+
+上記のコードは0,1,2とログ出力されます。このオブジェクトを使用して値の変更をDOMに反映します。
+
+例：
+
+```tsx
+// In a Component function
+const count = reactive(0)
+return <div>{count.value}</div>
+```
+
+これ次のようなJavaScriptに変換されます。
 
 ```js
-import { reactive, element$, text$ } from 'reactive-tsx';
-const App = (unsubscribes) => {
-    const count = reactive(0);
-    const div1 = element$("div");
-    {
-        div1.appendChild(text$("count: "));
-        const text2 = text$("");
-        unsubscribes.push(count.subscribe(() => text2.nodeValue = count.value));
-        div1.appendChild(text2);
-        const div3 = element$("div");
-        {
-            const button4 = element$("button");
-            button4["onclick"] = () => count.value++;
-            {
-                button4.appendChild(text$("+1"));
-            }
-            div3.appendChild(button4);
-            const button5 = element$("button");
-            button5["onclick"] = () => count.value--;
-            {
-                button5.appendChild(text$("-1"));
-            }
-            div3.appendChild(button5);
-            const button6 = element$("button");
-            button6["onclick"] = () => count.value = 0;
-            {
-                button6.appendChild(text$("reset"));
-            }
-            div3.appendChild(button6);
-        }
-        div1.appendChild(div3);
-    }
-    return div1;
-};
-(() => {
-    const node = document.body;
-    const unsubscribes = [];
-    const child = App(unsubscribes, {});
-    node.appendChild(child);
-    return () => {
-        node.removeChild(child);
-        unsubscribes.forEach(x => x());
-    };
-})();
+const count = reactive(0);
+const div1 = element$("div");
+{
+    const text2 = text$("");
+    unsubscribes.push(count.subscribe(() => text2.nodeValue = count.value));
+    div1.appendChild(text2);
+}
+return div1;
 ```
+
+ここで、`element$` = `document.createElement`、`text$` = `document.createTextNode`です。
+
+### `reactiveArray` function
+`reactiveArray`はリアクティブな配列オブジェクト(`ReactiveArray<T>`)を生成する関数です。このオブジェクトは配列の変更を監視するための疑似配列です。特に`map`メソッドは効率良くDOMを更新するために展開されます。
+
+```tsx
+const items = reactiveArray(['a', 'b', 'c'])
+return <div>
+    {items.map((item, index) => <div>{index.value}: {item.value}</div>)}
+</div>
+```
+
+上記のコードは次のようなJavaScriptに変換されます。
+
+```js
+const items = reactiveArray(['a', 'b', 'c']);
+const div1 = element$("div");
+{
+    mapArray$(div1, items, (unsubscribes, item, index) => {
+        const div2 = element$("div");
+        {
+            const text3 = text$("");
+            unsubscribes.push(index.subscribe(() => text3.nodeValue = index.value));
+            div2.appendChild(text3);
+            div2.appendChild(text$(": "));
+            const text4 = text$("");
+            unsubscribes.push(item.subscribe(() => text4.nodeValue = item.value));
+            div2.appendChild(text4);
+        }
+        return div2;
+    });
+}
+return div1;
+```
+
+`mapArray$`関数は`items`を`listen`してDOMに反映します。
+
+### `combine` function
+`combine`は複数の`Reactive<T>`を組み合わせて新たな`Reactive<T>`を作成する関数です。
+
+例:
+```tsx
+const count = reactive(0)
+const doubled = combine(count.value * 2)
+const powered = combine(count.value * count.value)
+```
+
+これは次のようなJavaScriptに変換されます。
+
+```js
+const count = reactive(0);
+const doubled = combineReactive$(undefined, [count], () => count.value * 2);
+const powered = combineReactive$(undefined, [count], () => count.value * count.value);
+```
+
+`combineReactive$`関数は複数の`Reactive<T>`を`subscribe`し、新く作成した`Reactive<T>`に変更を反映します。
+
+### Lifecycle events
+`onCreate`, `onDestroy` event.
+
+```tsx
+return <div onCreate={e => {}} onDestroy={e => {}} />
+```
+
+```js
+const div1 = element$("div");
+(e => { })(div1);
+unsubscribes.push(() => (e => { })(div1));
+return div1;
+```
+
+### mono Mode
+`"reactive-tsx"`の代わりに`"reactive-tsx/mono"`をインポートすると、`reactive`や`element$`などのユーティリティー関数が埋め込まれます。
