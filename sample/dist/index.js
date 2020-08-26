@@ -273,7 +273,7 @@ const outsidePartialJsx = (parentNode, unsubscribes) => {
 const App = (unsubscribes, props) => {
     const count = reactive(0);
     const items = reactiveArray(['xyz', 'abc']);
-    const doubled = combineReactive$(unsubscribes, [count], () => count.value * 2);
+    const powered = combineReactive$(unsubscribes, [count], () => count.value * count.value);
     const arr = ['a', 'b', 'c'];
     const partialJsx = (parentNode, unsubscribes) => {
         const div6 = element$("div");

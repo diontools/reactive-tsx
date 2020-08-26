@@ -1435,34 +1435,41 @@ function createFixedStringLiteral(text: string) {
     return fixed ? ts.createStringLiteral(fixed) : undefined
 }
 
-function getAllReactives(context: TransformContext, node: ts.Node, skipConditionalable?: boolean, buffer?: ts.Expression[]): ts.Expression[] {
-    if (!buffer) buffer = []
+type ReactivesSearchBuffer = { exp: ts.Expression, text: string }[]
 
+function getAllReactives(context: TransformContext, node: ts.Node, skipConditionalable?: boolean): ts.Expression[] {
+    const buffer: ReactivesSearchBuffer = []
+    getAllReactivesInternal(context, node, skipConditionalable || false, buffer)
+    return buffer.map(x => x.exp)
+}
+
+function getAllReactivesInternal(context: TransformContext, node: ts.Node, skipConditionalable: boolean, buffer: ReactivesSearchBuffer) {
     //console.log('searchReactive'.gray, node.getText())
 
     // skip arrow function
     if (ts.isArrowFunction(node)) {
-        return buffer
+        return
     }
 
     // skip jsx
     if (isJex(node)) {
-        return buffer
+        return
     }
 
     // skip conditionalable
     if (skipConditionalable && isConditionalable(node)) {
-        return buffer
+        return
     }
 
     const type = context.typeChecker.getTypeAtLocation(node)
     if (isAssignable(context.typeChecker, context.reactiveType, type)) {
-        buffer.push(node as ts.Expression)
+        const text = node.getText()
+        if (buffer.findIndex(v => v.text === text) < 0) {
+            buffer.push({ exp: node as ts.Expression, text })
+        }
     } else {
-        node.forEachChild(child => { getAllReactives(context, child, skipConditionalable, buffer) })
+        node.forEachChild(child => getAllReactivesInternal(context, child, skipConditionalable, buffer))
     }
-
-    return buffer
 }
 
 function isAssignable(typeChecker: ts.TypeChecker, type: ts.Type, assignType: ts.Type) {

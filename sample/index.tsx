@@ -17,7 +17,7 @@ const outsidePartialJsx = <div><span>outside</span></div>
 const App: Component<{ max: Reactive<number> }> = props => {
     const count = reactive(0)
     const items = reactiveArray(['xyz', 'abc'])
-    const doubled = combine(count.value * 2)
+    const powered = combine(count.value * count.value)
 
     const arr = ['a', 'b', 'c']
 
