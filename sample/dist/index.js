@@ -233,6 +233,10 @@ const mapArray$ = (() => {
         });
     });
 })();
+const callChildren$ = (children, parentNode, unsubscribes) => {
+    for (let i = 0; i < children.length; i++)
+        children[i] && children[i](parentNode, unsubscribes);
+};
 const element$ = document.createElement.bind(document);
 const text$ = document.createTextNode.bind(document);
 const Item = (unsubscribes, props) => {
@@ -270,6 +274,7 @@ const App = (unsubscribes, props) => {
     const count = reactive(0);
     const items = reactiveArray(['xyz', 'abc']);
     const doubled = combineReactive$(unsubscribes, [count], () => count.value * 2);
+    const arr = ['a', 'b', 'c'];
     const partialJsx = (parentNode, unsubscribes) => {
         const div6 = element$("div");
         {
@@ -448,15 +453,23 @@ const App = (unsubscribes, props) => {
             });
         }
         div8.appendChild(ul26);
+        callChildren$(arr.map(v => (parentNode, unsubscribes) => {
+            const div33 = element$("div");
+            {
+                div33.appendChild(text$(v));
+            }
+            parentNode.appendChild(div33);
+        }), div8, unsubscribes);
+        div8.appendChild(text$(arr.map(v => v)));
         div8.appendChild(Item(unsubscribes, {
             max: props.max,
             value: count.value,
             children: (parentNode, unsubscribes) => {
-                const span33 = element$("span");
+                const span34 = element$("span");
                 {
-                    span33.appendChild(text$("child!"));
+                    span34.appendChild(text$("child!"));
                 }
-                parentNode.appendChild(span33);
+                parentNode.appendChild(span34);
             }
         }));
         div8.appendChild(Item(unsubscribes, Object.assign(Object.assign({}, itemProps), { children: (parentNode, unsubscribes) => {

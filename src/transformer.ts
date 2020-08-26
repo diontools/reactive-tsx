@@ -15,6 +15,7 @@ const SubscribeFunctionName = 'subscribe$'
 const ConditionalFunctionName = 'conditional$'
 const ReplaceNodeFunctionName = 'replaceNode$'
 const MapArrayFunctionName = 'mapArray$'
+const CallChildrenFunctionName = 'callChildren$'
 const CombineFunctionName = 'combine'
 const CombineReactiveFunctionName = 'combineReactive$'
 const ElementFunctionName = 'element$'
@@ -42,6 +43,7 @@ type TransformContext = {
     conditionalFuncUsed?: true
     replaceNodeFuncUsed?: true
     mapArrayFuncUsed?: true
+    callChildrenFuncUsed?: true
     combineReactiveFuncUsed?: true
     elementFuncUsed?: true
     textFuncUsed?: true
@@ -51,6 +53,7 @@ type TransformContext = {
     conditionalFuncExp: ts.Expression
     replaceNodeFuncExp: ts.Expression
     mapArrayFuncExp: ts.Expression
+    callChildrenFuncExp: ts.Expression
     combineReactiveFuncExp: ts.Expression
     elementFuncExp: ts.Expression
     textFuncExp: ts.Expression
@@ -144,6 +147,7 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         conditionalFuncExp: createModuleMemberAccess(ConditionalFunctionName),
         replaceNodeFuncExp: createModuleMemberAccess(ReplaceNodeFunctionName),
         mapArrayFuncExp: createModuleMemberAccess(MapArrayFunctionName),
+        callChildrenFuncExp: createModuleMemberAccess(CallChildrenFunctionName),
         combineReactiveFuncExp: createModuleMemberAccess(CombineReactiveFunctionName),
         elementFuncExp: createModuleMemberAccess(ElementFunctionName),
         textFuncExp: createModuleMemberAccess(TextFunctionName),
@@ -221,6 +225,10 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
 
     if (context.mapArrayFuncUsed) {
         requiredFuncNames.push(MapArrayFunctionName)
+    }
+
+    if (context.callChildrenFuncUsed) {
+        requiredFuncNames.push(CallChildrenFunctionName)
     }
 
     if (context.conditionalFuncUsed) {
@@ -1078,6 +1086,17 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
     // children render
     const jsxElementInfo = isJsxElementType(context, jsxExpression.expression)
     if (jsxElementInfo) {
+        if (jsxElementInfo.isArray) {
+            context.callChildrenFuncUsed = true
+
+            // callChildren$(children, parentNode, unsubscribes)
+            return ts.createCall(
+                context.callChildrenFuncExp,
+                undefined,
+                [context.visitMain(jsxExpression.expression, unsubscribesId), parentNodeId, unsubscribesId]
+            )
+        }
+
         // chidren(parentNode, unsubscribes)
         const childrenCall = ts.createCall(
             jsxExpression.expression,
@@ -1108,12 +1127,13 @@ function transformJsxExpression(context: TransformContext, unsubscribesId: ts.Id
     )
 }
 
-function isJsxElementType(context: TransformContext, node: ts.Node): { isNullable: boolean } | undefined {
+function isJsxElementType(context: TransformContext, node: ts.Node): { isNullable: boolean, isArray: boolean } | undefined {
     const expType = context.typeChecker.getTypeAtLocation(node)
     //console.log('children'.gray, context.typeChecker.typeToString(expType), node.getText())
 
     let isNullable = false
     let isElement = false
+    let isArray = false
 
     if (isElementSymbol(expType.symbol)) {
         isElement = true
@@ -1125,9 +1145,15 @@ function isJsxElementType(context: TransformContext, node: ts.Node): { isNullabl
                 isNullable = true
             }
         }
+    } else if (
+        expType.symbol
+        && expType.symbol.name === 'Array'
+        && isElementSymbol(context.typeChecker.getTypeArguments(expType as ts.TypeReference)[0].symbol)) {
+        isArray = true
+        isElement = true
     }
 
-    return isElement ? { isNullable } : undefined
+    return isElement ? { isNullable, isArray } : undefined
 }
 
 function isElementSymbol(symbol: ts.Symbol) {

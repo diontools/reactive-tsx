@@ -19,6 +19,8 @@ const App: Component<{ max: Reactive<number> }> = props => {
     const items = reactiveArray(['xyz', 'abc'])
     const doubled = combine(count.value * 2)
 
+    const arr = ['a', 'b', 'c']
+
     const partialJsx = <div><span>foo</span></div>
 
     const itemProps = {
@@ -60,6 +62,8 @@ const App: Component<{ max: Reactive<number> }> = props => {
                 <button onclick={() => items.splice(index.value + 1, 0, Math.random().toString())}>insert</button>
             </li>)}
         </ul>
+        {arr.map(v => <div>{v}</div>)}
+        {arr.map(v => v)}
         <Item max={props.max} value={count.value}>
             <span>child!</span>
         </Item>

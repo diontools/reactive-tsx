@@ -266,5 +266,10 @@ export const mapArray$ = (() => {
     })
 })()
 
+export const callChildren$ = (children: Array<any>, parentNode: Node, unsubscribes: Unsubscribe[]) => {
+    for (let i = 0; i < children.length; i++)
+        children[i] && children[i](parentNode, unsubscribes)
+}
+
 export const element$: typeof document.createElement = document.createElement.bind(document)
 export const text$: typeof document.createTextNode = document.createTextNode.bind(document)
