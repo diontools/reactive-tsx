@@ -80,8 +80,7 @@ destroy() // remove appended nodes
 ```
 
 ### `reactive` function
-`reactive`はリアクティブなオブジェクト(`Reactive<T>`)を生成する関数です。
-このオブジェクトは`value`プロパティと`subscribe`メソッドを持ち、`subscribe`で登録したコールバック関数を`value`を変更するたびに呼び出します。
+`reactive` function creates a reactive object (`Reactive<T>`). This object has `value` property and `subscribe` method and calls the callback function registered by `subscribe` every time the value is changed.
 
 ```tsx
 const count = reactive(0) // create Reactive<number> with initial 0
@@ -90,9 +89,9 @@ count.value = 1
 count.value = 2
 ```
 
-上記のコードは0,1,2とログ出力されます。このオブジェクトを使用して値の変更をDOMに反映します。
+The above code will be logged as 0, 1, 2. This object is used to reflect value changes to the DOM.
 
-例：
+example:
 
 ```tsx
 // In a Component function
@@ -100,7 +99,7 @@ const count = reactive(0)
 return <div>{count.value}</div>
 ```
 
-これ次のようなJavaScriptに変換されます。
+This will be transformed to the following JavaScript.
 
 ```js
 const count = reactive(0);
@@ -113,10 +112,10 @@ const div1 = element$("div");
 return div1;
 ```
 
-ここで、`element$` = `document.createElement`、`text$` = `document.createTextNode`です。
+At this point, `element$` = `document.createElement`, `text$` = `document.createTextNode`.
 
 ### `reactiveArray` function
-`reactiveArray`はリアクティブな配列オブジェクト(`ReactiveArray<T>`)を生成する関数です。このオブジェクトは配列の変更を監視するための疑似配列です。特に`map`メソッドは効率良くDOMを更新するために展開されます。
+`reactiveArray` function creates a reactive array object (`ReactiveArray<T>`). This object is a pseudo-array to monitor the changes of the array. In particular, `map` method is transformed to efficiently update the DOM.
 
 ```tsx
 const items = reactiveArray(['a', 'b', 'c'])
@@ -125,7 +124,7 @@ return <div>
 </div>
 ```
 
-上記のコードは次のようなJavaScriptに変換されます。
+The above code will be transformed into the following JavaScript.
 
 ```js
 const items = reactiveArray(['a', 'b', 'c']);
@@ -148,19 +147,19 @@ const div1 = element$("div");
 return div1;
 ```
 
-`mapArray$`関数は`items`を`listen`してDOMに反映します。
+`mapArray$` function `listen` to `items`, and reflect to the DOM.
 
 ### `combine` function
-`combine`は複数の`Reactive<T>`を組み合わせて新たな`Reactive<T>`を作成する関数です。
+`combine` function creates a new `Reactive<T>` by combining multiple `Reactive<T>`.
 
-例:
+example:
 ```tsx
 const count = reactive(0)
 const doubled = combine(count.value * 2)
 const powered = combine(count.value * count.value)
 ```
 
-これは次のようなJavaScriptに変換されます。
+This will be transformed to the following JavaScript.
 
 ```js
 const count = reactive(0);
@@ -168,7 +167,7 @@ const doubled = combineReactive$(undefined, [count], () => count.value * 2);
 const powered = combineReactive$(undefined, [count], () => count.value * count.value);
 ```
 
-`combineReactive$`関数は複数の`Reactive<T>`を`subscribe`し、新く作成した`Reactive<T>`に変更を反映します。
+`combineReactive$` function `subscribe` from multiple `Reactive<T>` and update the newly created `Reactive<T>` to reflect the changes.
 
 ### Lifecycle events
 `onCreate`, `onDestroy` event.
@@ -185,4 +184,4 @@ return div1;
 ```
 
 ### mono Mode
-`"reactive-tsx"`の代わりに`"reactive-tsx/mono"`をインポートすると、`reactive`や`element$`などのユーティリティー関数が埋め込まれます。
+If you import `"reactive-tsx/mono"` instead of `"reactive-tsx"`, utility functions such as `reactive` and `element$` will be embedded.
