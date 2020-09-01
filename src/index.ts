@@ -3,6 +3,8 @@
 import { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine } from '../mono'
 export { Action, Unsubscribe, Reactive, ActionType, Listener, ReactiveArray, Component, run, combine }
 
+export const version: string = 'REPLACED_BY_TRANSFORMER'
+
 type LinkItem = {
     action: Action
     next?: LinkItem
