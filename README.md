@@ -11,7 +11,7 @@ Convert TypeScript TSX to nice JavaScript.
 ## Setup
 Create using the template by [degit](https://github.com/Rich-Harris/degit).
 
-```
+```console
 npx degit diontools/reactive-tsx/template new-app-dir
 
 cd new-app-dir
@@ -22,8 +22,8 @@ npm start -- --open
 ### Manual Setup
 Install libraries.
 
-```shell
-npm i reactive-tsx@latest typescript@3
+```console
+npm i reactive-tsx@latest typescript@4
 ```
 
 Add `getCustomTransformers` to ts-loader `options` of webpack.config.js.

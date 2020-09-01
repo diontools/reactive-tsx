@@ -13,7 +13,8 @@
             "reactive-tsx/src": ["../src"]
         },
         "plugins": [
-            { "transform": "../src/transformer.ts" }
+            { "transform": "../src/transformer.ts" },
+            { "transform": "../src/transformer-remove-export.ts", "after": true }
         ]
     },
     "files": [

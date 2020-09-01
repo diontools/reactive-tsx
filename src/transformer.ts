@@ -83,6 +83,8 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
     let removingNodes: ts.Node[] = []
     const monoNames: string[] = []
 
+    if (isMono) removingNodes.push(importInfo.importDeclaration)
+
     for (const importSpecifier of namedImports.elements) {
         const name = importSpecifier.propertyName?.text ?? importSpecifier.name.text
         if (name === ComponentTypeName) {
@@ -252,20 +254,42 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         requiredFuncNames.push(TextFunctionName)
     }
 
-    const transformedImportInfo = getImport(transformedSourceFile)
-    if (!transformedImportInfo) throw 'import not found.'
-
     if (!isMono) {
-        transformedImportInfo.namedImports.elements = ts.createNodeArray([
-            ...transformedImportInfo.namedImports.elements,
-            ...requiredFuncNames.map(name => ts.createImportSpecifier(undefined, ts.createIdentifier(name))),
-        ])
+        const transformedImportInfo = getImport(transformedSourceFile)
+        if (!transformedImportInfo) throw 'import not found.'
+
+        const statements = transformedSourceFile.statements
+        const newStatements: ts.Statement[] = [
+            ...statements.slice(0, transformedImportInfo.statementIndex),
+            ts.factory.updateImportDeclaration(
+                transformedImportInfo.importDeclaration,
+                transformedImportInfo.importDeclaration.decorators,
+                transformedImportInfo.importDeclaration.modifiers,
+                ts.factory.updateImportClause(
+                    transformedImportInfo.importDeclaration.importClause!,
+                    transformedImportInfo.importDeclaration.importClause!.isTypeOnly,
+                    transformedImportInfo.importDeclaration.importClause!.name,
+                    ts.factory.updateNamedImports(transformedImportInfo.namedImports, [
+                        ...transformedImportInfo.namedImports.elements,
+                        ...requiredFuncNames.map(name => ts.createImportSpecifier(undefined, ts.createIdentifier(name))),
+                    ])
+                ),
+                transformedImportInfo.moduleSpecifier
+            ),
+            ...statements.slice(transformedImportInfo.statementIndex + 1),
+        ]
+        transformedSourceFile = ts.factory.updateSourceFile(
+            transformedSourceFile,
+            newStatements,
+            transformedSourceFile.isDeclarationFile,
+            transformedSourceFile.referencedFiles,
+            transformedSourceFile.typeReferenceDirectives,
+            transformedSourceFile.hasNoDefaultLib,
+            transformedSourceFile.libReferenceDirectives
+        )
     } else {
         console.log('mono mode'.blue)
         monoNames.push(...requiredFuncNames)
-
-        // remove import declaration
-        let newStatements: ts.Statement[] = transformedSourceFile.statements.filter(s => s !== transformedImportInfo.importDeclaration)
 
         // get main module source file
         const options = ctx.getCompilerOptions()
@@ -285,9 +309,15 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
                         if (monoNames.indexOf(variableName) >= 0) {
                             console.log('inlining'.yellow, variableName)
 
-                            const newStatement = cloneNode(statement)
-                            preserveMultiLine(newStatement, statement)
-                            newStatement.modifiers = undefined // remove export keyword
+                            const sourceStatement = cloneNode(statement)
+                            preserveMultiLine(sourceStatement, statement)
+
+                            // remove export keyword
+                            const newStatement = ts.factory.updateVariableStatement(
+                                statement,
+                                undefined,
+                                sourceStatement.declarationList
+                            )
 
                             insertStatements.push(newStatement)
                             break
@@ -298,9 +328,16 @@ function transformSourceFile(ctx: ts.TransformationContext, typeChecker: ts.Type
         }
 
         // insert statements from main module
-        newStatements = [...insertStatements, ...newStatements]
-        //newStatements.push(...insertStatements)
-        transformedSourceFile = ts.updateSourceFileNode(transformedSourceFile, newStatements)
+        const newStatements = [...insertStatements, ...transformedSourceFile.statements]
+        transformedSourceFile = ts.factory.updateSourceFile(
+            transformedSourceFile,
+            newStatements,
+            transformedSourceFile.isDeclarationFile,
+            transformedSourceFile.referencedFiles,
+            transformedSourceFile.typeReferenceDirectives,
+            transformedSourceFile.hasNoDefaultLib,
+            transformedSourceFile.libReferenceDirectives
+        )
     }
 
     return transformedSourceFile
@@ -311,6 +348,7 @@ function getImport(sourceFile: ts.SourceFile) {
     let namedImports: ts.NamedImports | undefined
     let isMono = false
     let moduleSpecifier: ts.StringLiteral | undefined
+    let statementIndex = -1
 
     for (let i = 0; i < sourceFile.statements.length; i++) {
         const node = sourceFile.statements[i]
@@ -326,6 +364,7 @@ function getImport(sourceFile: ts.SourceFile) {
             isMono = node.moduleSpecifier.text === MonoModuleName
             moduleSpecifier = node.moduleSpecifier
             importDeclaration = node
+            statementIndex = i
         }
     }
 
@@ -333,7 +372,7 @@ function getImport(sourceFile: ts.SourceFile) {
     if (!namedImports) throw 'import not found.'
     if (!moduleSpecifier) throw 'moduleSpecifier is undefined.'
 
-    return { importDeclaration, namedImports, isMono, moduleSpecifier }
+    return { importDeclaration, namedImports, isMono, moduleSpecifier, statementIndex }
 }
 
 function getTypeOfExportsByName(typeChecker: ts.TypeChecker, exports: ts.SymbolTable, typeName: string) {
@@ -428,28 +467,28 @@ function createConstVariableStatement(declarations: ts.VariableDeclaration[]) {
 }
 
 function transformComponent(context: TransformContext, node: ts.VariableDeclaration, defineComponentSymbol: ts.Symbol) {
-    const newNode = ts.getMutableClone(node)
-
-    if (!newNode.initializer)
+    if (!node.initializer)
         throw 'initializer not found.'
-    if (!ts.isArrowFunction(newNode.initializer))
+    if (!ts.isArrowFunction(node.initializer))
         throw 'initializer is not arrow function.'
 
     // component function
-    const arrowFunction = newNode.initializer = ts.getMutableClone(newNode.initializer)
+    const arrowFunction = node.initializer
 
     // unsubscribes identifier for new parameter
     const unsubscribesId = ts.createIdentifier("unsubscribes")
 
+    let newBody: ts.ConciseBody
+
     const peeledNode = peelParentheses(arrowFunction.body)
     if (isJex(peeledNode)) {
-        arrowFunction.body = ts.createBlock(
+        newBody = ts.createBlock(
             jsxToStatements(transformJsx(context, unsubscribesId, peeledNode)),
             true
         )
     }
     else if (ts.isBlock(peeledNode)) {
-        arrowFunction.body = transformComponentBody(context, unsubscribesId, peeledNode)
+        newBody = transformComponentBody(context, unsubscribesId, peeledNode)
     }
     else {
         throw 'not supported node: ' + ts.SyntaxKind[arrowFunction.body.kind]
@@ -458,9 +497,22 @@ function transformComponent(context: TransformContext, node: ts.VariableDeclarat
     // add unsubscribes to first parameter: (unsubscribes, props) => ...
     // Note: Modify parameters after JSX transformation in order to refer to the type by TypeChecker during JSX transformation.
     const unsubscribesParameter = createSimpleParameter(unsubscribesId)
-    arrowFunction.parameters = ts.createNodeArray([unsubscribesParameter, ...arrowFunction.parameters])
+    const newParameters = [unsubscribesParameter, ...arrowFunction.parameters]
 
-    return newNode
+    return ts.factory.updateVariableDeclaration(
+        node,
+        node.name,
+        node.exclamationToken,
+        node.type,
+        ts.updateArrowFunction(
+            arrowFunction,
+            arrowFunction.modifiers,
+            arrowFunction.typeParameters,
+            newParameters,
+            arrowFunction.type,
+            newBody
+        )
+    )
 }
 
 function peelParentheses(node: ts.Node): ts.Node {
@@ -468,10 +520,9 @@ function peelParentheses(node: ts.Node): ts.Node {
 }
 
 function transformComponentBody(context: TransformContext, unsubscribesId: ts.Identifier, body: ts.Block): ts.ConciseBody {
-    const newBody = ts.getMutableClone(body)
     const newStatements: ts.Statement[] = []
 
-    for (const statement of newBody.statements) {
+    for (const statement of body.statements) {
         if (ts.isReturnStatement(statement)) {
             if (!statement.expression)
                 throw 'returns expression not found.'
@@ -486,9 +537,7 @@ function transformComponentBody(context: TransformContext, unsubscribesId: ts.Id
         }
     }
 
-    newBody.statements = ts.createNodeArray(newStatements)
-
-    return newBody
+    return ts.factory.updateBlock(body, newStatements)
 }
 
 function isCombineCall(node: ts.Node): node is ts.CallExpression {
